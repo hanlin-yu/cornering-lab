@@ -110,55 +110,98 @@
   PRESETS = buildPresets(currentCar);
 
   var TYRE_POINT_DEFS = [
-    {
-      code: 'FL',
-      axle: 'front',
-      side: 'inner',
-      front: true,
-      gripKey: 'frontInner',
-      fzId: 'curveFLFz',
-      muId: 'curveFLMu',
-      labelDx: -10,
-      labelDy: -9,
-      anchor: 'end'
-    },
-    {
-      code: 'FR',
-      axle: 'front',
-      side: 'outer',
-      front: true,
-      gripKey: 'frontOuter',
-      fzId: 'curveFRFz',
-      muId: 'curveFRMu',
-      labelDx: 10,
-      labelDy: -9,
-      anchor: 'start'
-    },
-    {
-      code: 'RL',
-      axle: 'rear',
-      side: 'inner',
-      front: false,
-      gripKey: 'rearInner',
-      fzId: 'curveRLFz',
-      muId: 'curveRLMu',
-      labelDx: -10,
-      labelDy: 16,
-      anchor: 'end'
-    },
-    {
-      code: 'RR',
-      axle: 'rear',
-      side: 'outer',
-      front: false,
-      gripKey: 'rearOuter',
-      fzId: 'curveRRFz',
-      muId: 'curveRRMu',
-      labelDx: 10,
-      labelDy: 16,
-      anchor: 'start'
-    }
+    { code: 'FL', axle: 'front', side: 'inner', front: true, gripKey: 'frontInner' },
+    { code: 'FR', axle: 'front', side: 'outer', front: true, gripKey: 'frontOuter' },
+    { code: 'RL', axle: 'rear', side: 'inner', front: false, gripKey: 'rearInner' },
+    { code: 'RR', axle: 'rear', side: 'outer', front: false, gripKey: 'rearOuter' }
   ];
+
+  var TYRE_LABEL_CANDIDATES = [
+    { dx: 8, dy: -6, anchor: 'start' },
+    { dx: -8, dy: -6, anchor: 'end' },
+    { dx: 8, dy: 16, anchor: 'start' },
+    { dx: -8, dy: 16, anchor: 'end' },
+    { dx: 0, dy: -12, anchor: 'middle' },
+    { dx: 0, dy: 21, anchor: 'middle' },
+    { dx: 12, dy: 4, anchor: 'start' },
+    { dx: -12, dy: 4, anchor: 'end' }
+  ];
+
+  // Place the four wheel codes without overlap; the charts are narrow when
+  // the two tyre plots share a row, so fixed offsets are not enough.
+  function layoutTyrePointLabels(points, width, height, margin) {
+    var labelWidth = 19;
+    var labelHeight = 15;
+
+    function boxFor(point, candidate) {
+      var x = point.x + candidate.dx;
+      var y = point.y + candidate.dy;
+      var left = candidate.anchor === 'start'
+        ? x
+        : candidate.anchor === 'end' ? x - labelWidth : x - labelWidth / 2;
+      return {
+        left: left,
+        right: left + labelWidth,
+        top: y - (labelHeight - 3),
+        bottom: y + 3
+      };
+    }
+
+    function boxesOverlap(a, b, pad) {
+      return !(a.right + pad <= b.left ||
+        b.right + pad <= a.left ||
+        a.bottom + pad <= b.top ||
+        b.bottom + pad <= a.top);
+    }
+
+    var placed = [];
+    return points.map(function (point, pointIndex) {
+      var bestCandidate = TYRE_LABEL_CANDIDATES[0];
+      var bestBox = boxFor(point, bestCandidate);
+      var bestPenalty = Infinity;
+
+      TYRE_LABEL_CANDIDATES.forEach(function (candidate) {
+        var box = boxFor(point, candidate);
+        var penalty = 0;
+        if (box.left < margin.left || box.right > width - margin.right ||
+          box.top < margin.top + 2 || box.bottom > height - margin.bottom - 2) {
+          penalty += 12;
+        }
+        placed.forEach(function (otherBox) {
+          if (boxesOverlap(box, otherBox, 2)) {
+            penalty += 10;
+          }
+        });
+        points.forEach(function (otherPoint, otherIndex) {
+          if (otherIndex === pointIndex) {
+            return;
+          }
+          var markerBox = {
+            left: otherPoint.x - 7,
+            right: otherPoint.x + 7,
+            top: otherPoint.y - 7,
+            bottom: otherPoint.y + 7
+          };
+          if (boxesOverlap(box, markerBox, 0)) {
+            penalty += 6;
+          }
+        });
+
+        if (penalty < bestPenalty) {
+          bestPenalty = penalty;
+          bestCandidate = candidate;
+          bestBox = box;
+        }
+      });
+
+      placed.push(bestBox);
+      return {
+        x: point.x + bestCandidate.dx,
+        y: point.y + bestCandidate.dy,
+        anchor: bestCandidate.anchor
+      };
+    });
+  }
 
   var COPY = {
     understeer: {
@@ -1857,9 +1900,9 @@
     var rearPath = $('tyreCurveRear');
     var note = $('tyreCurveNote');
 
-    var width = 760;
-    var height = 260;
-    var margin = { left: 58, right: 22, top: 24, bottom: 48 };
+    var width = 340;
+    var height = 400;
+    var margin = { left: 50, right: 12, top: 20, bottom: 42 };
     var plotWidth = width - margin.left - margin.right;
     var plotHeight = height - margin.top - margin.bottom;
 
@@ -1887,17 +1930,12 @@
       var isOuter = result.outerSide !== 'none' &&
         ((result.outerSide === 'left' && isLeftWheel) ||
           (result.outerSide === 'right' && !isLeftWheel));
-      var axleLabel = definition.front ? '前' : '后';
-      var role = result.outerSide === 'none'
-        ? axleLabel
-        : axleLabel + '·' + (isOuter ? '外' : '内');
       return {
         definition: definition,
         load: grip.load,
         mu: grip.mu,
         capacity: grip.capacity,
-        side: isOuter ? 'outer' : 'inner',
-        role: role
+        side: isOuter ? 'outer' : 'inner'
       };
     });
 
@@ -2020,7 +2058,7 @@
       y: height - 9,
       'text-anchor': 'middle',
       class: 'tyre-axis-title'
-    }, 'Fz / TYRE (kN)'));
+    }, 'TYRE LOAD Fz (kN)'));
 
     var frontPathData = '';
     var rearPathData = '';
@@ -2044,30 +2082,10 @@
       rearPath.setAttribute('d', rearPathData);
     }
 
+    var labelPoints = [];
     samples.forEach(function (sample) {
       var definition = sample.definition;
-      var fzElement = $(definition.fzId);
-      var muElement = $(definition.muId);
-      var row = document.querySelector('[data-tyre-row="' + definition.code + '"]');
-      var isLifted = !(sample.load > 0);
-
-      if (fzElement) {
-        fzElement.textContent = isLifted ? '离地' : (sample.load / 1000).toFixed(2) + ' kN';
-      }
-      if (muElement) {
-        muElement.textContent = isLifted ? '—' : sample.mu.toFixed(3);
-      }
-      if (row) {
-        row.classList.toggle('is-lifted', isLifted);
-      }
-      var roleElement = row
-        ? row.querySelector('[data-tyre-role="' + definition.code + '"]')
-        : null;
-      if (roleElement) {
-        roleElement.textContent = sample.role;
-      }
-
-      if (isLifted) {
+      if (!(sample.load > 0)) {
         return;
       }
 
@@ -2084,29 +2102,42 @@
         definition.code + ' · Fz ' + (sample.load / 1000).toFixed(2) +
         ' kN · μ ' + sample.mu.toFixed(3)));
       pointsGroup.appendChild(marker);
+      labelPoints.push({
+        code: definition.code,
+        axle: definition.axle,
+        x: pointX,
+        y: pointY
+      });
+    });
 
+    var labelPlacements = layoutTyrePointLabels(
+      labelPoints, width, height, margin
+    );
+    labelPoints.forEach(function (point, index) {
+      var placement = labelPlacements[index];
       pointsGroup.appendChild(createSvgElement('text', {
-        x: (pointX + definition.labelDx).toFixed(2),
-        y: (pointY + definition.labelDy).toFixed(2),
-        'text-anchor': definition.anchor,
-        class: 'tyre-point-label tyre-point-label--' + definition.axle
-      }, definition.code));
+        x: placement.x.toFixed(2),
+        y: placement.y.toFixed(2),
+        'text-anchor': placement.anchor,
+        class: 'tyre-point-label tyre-point-label--' + point.axle
+      }, point.code));
     });
 
     if (note) {
       if (currentTyreId === 'custom') {
-        note.textContent = '自定义模式：前后轴共用 μ_ref / k；FZ0 沿用当前胶料，四点为当前实际轮荷。';
+        note.textContent = '自定义模式：前后轴共用 μ_ref / k；FZ0 沿用当前胶料。';
       } else {
         var compound = TYRE_COMPOUNDS[currentTyreId];
         var sameTyre =
           Math.abs(tyreState.tireMuRef - tyreState.tireRearMuRef) < 1e-9 &&
           Math.abs(tyreState.tireFz0N - tyreState.tireRearFz0N) < 1e-9 &&
           Math.abs(tyreState.tireLoadSensitivityK - tyreState.tireRearLoadSensitivityK) < 1e-9;
-        note.textContent = 'AC ' + (compound ? compound.section : '') +
+        note.textContent = (compound && compound.name
+          ? 'AC ' + compound.name + ' 胶料 · '
+          : '') +
           (sameTyre
-            ? '；前后轴参数相同，两条曲线重合。'
-            : '；前后轴参数不同，两条曲线分开。') +
-          '四点为当前实际轮荷。';
+            ? '前后轴参数相同，曲线重合。'
+            : '前后轴参数不同，曲线分开。');
       }
     }
 
@@ -2136,9 +2167,9 @@
       return;
     }
 
-    var width = 760;
-    var height = 210;
-    var margin = { left: 66, right: 22, top: 20, bottom: 48 };
+    var width = 340;
+    var height = 400;
+    var margin = { left: 50, right: 12, top: 20, bottom: 42 };
     var plotWidth = width - margin.left - margin.right;
     var plotHeight = height - margin.top - margin.bottom;
     var tyreState = result.state;
@@ -2286,7 +2317,7 @@
       y: height - 9,
       'text-anchor': 'middle',
       class: 'tyre-axis-title'
-    }, 'Fz / TYRE (kN)'));
+    }, 'TYRE LOAD Fz (kN)'));
 
     var frontPathData = '';
     var rearPathData = '';
@@ -2313,6 +2344,7 @@
     }
 
     var pointSummary = [];
+    var labelPoints = [];
     samples.forEach(function (sample) {
       if (!(sample.load > 0)) {
         return;
@@ -2332,14 +2364,27 @@
         ' kN · μ ' + sample.mu.toFixed(3) +
         ' · μ × Fz ' + (sample.capacity / 1000).toFixed(2) + ' kN'));
       pointsGroup.appendChild(marker);
-      pointsGroup.appendChild(createSvgElement('text', {
-        x: (pointX + definition.labelDx).toFixed(2),
-        y: (pointY + definition.labelDy).toFixed(2),
-        'text-anchor': definition.anchor,
-        class: 'tyre-point-label tyre-point-label--' + definition.axle
-      }, definition.code));
+      labelPoints.push({
+        code: definition.code,
+        axle: definition.axle,
+        x: pointX,
+        y: pointY
+      });
       pointSummary.push(definition.code + ' ' +
         (sample.capacity / 1000).toFixed(2) + ' kN');
+    });
+
+    var labelPlacements = layoutTyrePointLabels(
+      labelPoints, width, height, margin
+    );
+    labelPoints.forEach(function (point, index) {
+      var placement = labelPlacements[index];
+      pointsGroup.appendChild(createSvgElement('text', {
+        x: placement.x.toFixed(2),
+        y: placement.y.toFixed(2),
+        'text-anchor': placement.anchor,
+        class: 'tyre-point-label tyre-point-label--' + point.axle
+      }, point.code));
     });
 
     svg.setAttribute('aria-label',

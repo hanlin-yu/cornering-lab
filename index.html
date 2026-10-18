@@ -4,9 +4,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="dark">
-  <meta name="description" content="多车型 Assetto Corsa 解包数据、3D 底盘、二维 G-G 输入、CoG/G 力显示、侧倾刚度与前后轴抓地力平衡实验台。">
+  <meta name="description" content="基于 Assetto Corsa 解包数据的稳态过弯模型：调节弹簧、防倾杆与载荷敏感轮胎 μ，观察前后轴抓地力和推头 / 甩尾平衡。">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23081014'/%3E%3Ccircle cx='32' cy='32' r='18' fill='none' stroke='%235ad7d2' stroke-width='3'/%3E%3Cpath d='M14 32h12M38 32h12' stroke='%235ad7d2' stroke-width='3' stroke-linecap='round'/%3E%3Ccircle cx='32' cy='32' r='4' fill='%23eafbfc'/%3E%3C/svg%3E">
-  <title>Cornering Lab · 多车型 3D 底盘与抓地平衡</title>
+  <title>Cornering Lab · 底盘调校与过弯平衡</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -25,23 +25,19 @@
         </svg>
       </div>
       <div class="brand-copy">
-        <div class="eyebrow">
-          <span class="pulse-dot" aria-hidden="true"></span>
-          ASSETTO CORSA DATA · MULTI-CAR LAB
-        </div>
-        <h1>Cornering Lab <span>多车型 / 底盘 · 抓地平衡</span></h1>
+        <h1>Cornering Lab</h1>
       </div>
     </div>
     <div class="header-meta" aria-label="模型说明">
       <span class="tag" id="carTag">ZN6</span>
       <span class="tag" id="compoundTag">SEMISLICKS</span>
-      <span class="tag tag--quiet">STEADY STATE · 2D G-G</span>
+      <span class="tag tag--quiet">STEADY-STATE · 2D G-G</span>
     </div>
   </header>
 
   <section class="vehicle-bar" aria-labelledby="vehicleBarLabel">
     <div class="vehicle-bar-title">
-      <span class="eyebrow" id="vehicleBarLabel">GARAGE / VEHICLE</span>
+      <span class="eyebrow" id="vehicleBarLabel">VEHICLE / TYRE</span>
       <strong>车型选择</strong>
     </div>
     <label class="vehicle-select">
@@ -60,7 +56,7 @@
     <aside class="panel control-panel" aria-labelledby="controlsTitle">
       <div class="panel-heading">
         <div>
-          <div class="eyebrow">SETUP / LIVE</div>
+          <div class="eyebrow">SETUP / INPUTS</div>
           <h2 id="controlsTitle">调校台</h2>
         </div>
         <span class="panel-index" aria-hidden="true">01</span>
@@ -105,7 +101,7 @@
 
       <section class="control-section tyre-section" aria-labelledby="tyreTitle">
         <div class="section-heading">
-          <h3 id="tyreTitle">轮胎模型 <span>AC TYRE / μ–Fz</span></h3>
+          <h3 id="tyreTitle">轮胎模型 <span>AC TYRE DATA</span></h3>
         </div>
 
         <div class="tyre-select-row">
@@ -136,7 +132,7 @@
         </div>
 
         <p class="tyre-formula">
-          <span class="tyre-formula-kicker">POINTWISE LOAD SENSITIVITY</span>
+          <span class="tyre-formula-kicker">LOAD-SENSITIVE GRIP</span>
           <strong>μ(Fz) = μ_ref · (Fz / FZ0)<sup>−k</sup></strong>
           <small>k = 1 − LS_EXPY；逐轮按实际 Fz 计算 Fy,max = μ(Fz) · Fz。</small>
         </p>
@@ -147,7 +143,7 @@
 
       <section class="control-section stiffness-section" aria-labelledby="stiffnessTitle">
         <div class="section-heading">
-          <h3 id="stiffnessTitle">悬挂刚度 <span>WHEEL-RATE EQUIV.</span></h3>
+          <h3 id="stiffnessTitle">悬挂刚度 <span>SPRING / ANTI-ROLL</span></h3>
         </div>
 
         <div class="axle-controls axle-controls--front">
@@ -325,7 +321,7 @@
           </button>
           <button class="preset-button preset-button--accent" id="autoBalanceButton" type="button">
             <span>自动配平</span>
-            <small>SOLVE FRONT ARB</small>
+            <small>AUTO-BALANCE ARB</small>
           </button>
         </div>
         <p class="auto-note" id="autoBalanceNote" aria-live="polite"></p>
@@ -366,7 +362,7 @@
           <div class="scene" id="sceneContainer">
             <div class="scene-loading" id="sceneLoading">
               <span class="loader-ring" aria-hidden="true"></span>
-              <span>INITIALISING 3D CHASSIS</span>
+              <span>LOADING 3D CHASSIS</span>
             </div>
             <div class="scene-error" id="sceneError" hidden>
               <span class="scene-error-code">WEBGL UNAVAILABLE</span>
@@ -377,7 +373,7 @@
             <div class="scene-hud">
               <div class="scene-topbar">
                 <div class="scene-heading">
-                  <div class="eyebrow">LIVE CHASSIS / 3D VIEW</div>
+                  <div class="eyebrow">3D CHASSIS / LOAD VIEW</div>
                   <h2 id="viewportTitle">3D 底盘受力台</h2>
                   <div class="scene-subline">
                     <span class="mini-pill mini-pill--front"><i></i>前轴</span>
@@ -480,7 +476,7 @@
         <section class="panel condition-panel" aria-labelledby="conditionTitle">
           <div class="panel-heading condition-heading">
             <div>
-              <div class="eyebrow">CORNERING INPUT / G-G</div>
+              <div class="eyebrow">G-G INPUT / LIMIT MAP</div>
               <h2 id="conditionTitle">过弯条件</h2>
             </div>
             <span class="g-phase-badge" id="gPhaseBadge">弯中 / MID</span>
@@ -549,14 +545,14 @@
           <div class="g-region-key" aria-label="连续平衡热力图：甩尾为暖色，黑色为中性，推头为冷色">
             <span class="g-region-scale">
               <span class="g-region-end">甩尾</span>
-              <i class="g-region-gradient" title="ICE–BLACK–FIRE"></i>
+              <i class="g-region-gradient"></i>
               <span class="g-region-end">推头</span>
             </span>
-            <span class="g-region-refresh">0.1 g 插值 · 1 s</span>
+            <span class="g-region-refresh">0.1 g 网格 · 1 s 刷新</span>
           </div>
 
           <div class="g-state-key" aria-label="轴超限状态颜色图例">
-            <span class="g-state-key-title">轴超限 / LIMIT</span>
+            <span class="g-state-key-title">轴超限 / AXLE LIMIT</span>
             <span data-state="mid-corner-understeer"><i aria-hidden="true"></i>弯中推头</span>
             <span data-state="mid-corner-oversteer"><i aria-hidden="true"></i>弯中甩尾</span>
             <span data-state="power-over"><i aria-hidden="true"></i>动力甩尾</span>
@@ -579,7 +575,7 @@
               <div class="eyebrow">HANDLING BALANCE</div>
               <h2 id="balanceTitle">操控平衡</h2>
             </div>
-            <span class="live-badge"><i aria-hidden="true"></i>LIVE</span>
+            <span class="live-badge"><i aria-hidden="true"></i>REAL-TIME</span>
           </div>
 
           <div class="status-hero" id="statusHero" data-state="understeer">
@@ -603,7 +599,7 @@
           <div class="axle-ledger" aria-label="前后轴总抓地力与利用率">
             <div class="axle-ledger-heading">
               <div>
-                <div class="eyebrow">AXLE GRIP / FORCE BUDGET</div>
+                <div class="eyebrow">AXLE GRIP / UTILISATION</div>
                 <h3>前后轴总抓地力</h3>
               </div>
               <span class="axle-ledger-total">Σ <b id="totalGripValue">15.34</b><small>kN</small></span>
@@ -664,49 +660,49 @@
         <section class="panel tyre-curve-panel" aria-labelledby="tyreCurveTitle">
           <div class="tyre-curve-head">
             <div>
-              <div class="eyebrow">TYRE MODEL / POINTWISE μ–Fz</div>
+              <div class="eyebrow">TYRE MODEL / LOAD RESPONSE</div>
               <h2 id="tyreCurveTitle">μ</h2>
             </div>
             <span class="tyre-model-chip"><small>当前轮胎</small><b id="curveTyreName">Semislicks</b></span>
           </div>
 
-          <div class="tyre-plot">
-            <svg id="tyreCurveSvg" viewBox="0 0 760 260" role="img" aria-label="轮胎摩擦系数 μ 随垂向载荷 Fz 变化的曲线">
-              <g id="tyreCurveGrid" class="tyre-curve-grid"></g>
-              <g id="tyreCurveAxes" class="tyre-curve-axes"></g>
-              <path id="tyreCurveFront" class="tyre-curve-line tyre-curve-line--front" fill="none"></path>
-              <path id="tyreCurveRear" class="tyre-curve-line tyre-curve-line--rear" fill="none"></path>
-              <g id="tyreCurvePoints" class="tyre-curve-points"></g>
-            </svg>
-            <div class="tyre-curve-legend">
-              <span><i class="tyre-legend-line tyre-legend-line--front"></i>前轴 μ(Fz)</span>
-              <span><i class="tyre-legend-line tyre-legend-line--rear"></i>后轴 μ(Fz)</span>
-              <span><i class="tyre-legend-dot"></i>空心 = 内侧，实心 = 外侧</span>
+          <div class="tyre-chart-row">
+            <div class="tyre-plot tyre-chart-card" aria-label="前轴与后轴轮胎的 μ–Fz 曲线">
+              <div class="tyre-chart-head">
+                <strong>μ–Fz CURVE</strong>
+                <span>摩擦系数随轮荷变化 · 四点为四轮当前载荷</span>
+              </div>
+              <svg id="tyreCurveSvg" viewBox="0 0 340 400" role="img" aria-label="轮胎摩擦系数 μ 随垂向载荷 Fz 变化的曲线，四个标记点为当前轮胎状态">
+                <g id="tyreCurveGrid" class="tyre-curve-grid"></g>
+                <g id="tyreCurveAxes" class="tyre-curve-axes"></g>
+                <path id="tyreCurveFront" class="tyre-curve-line tyre-curve-line--front" fill="none"></path>
+                <path id="tyreCurveRear" class="tyre-curve-line tyre-curve-line--rear" fill="none"></path>
+                <g id="tyreCurvePoints" class="tyre-curve-points"></g>
+              </svg>
+              <div class="tyre-curve-legend">
+                <span><i class="tyre-legend-line tyre-legend-line--front"></i>前轴 μ(Fz)</span>
+                <span><i class="tyre-legend-line tyre-legend-line--rear"></i>后轴 μ(Fz)</span>
+                <span><i class="tyre-legend-dot"></i>空心 = 内侧，实心 = 外侧</span>
+              </div>
             </div>
-            <div class="tyre-wheel-chips" aria-label="四个车轮当前 μ">
-              <span class="tyre-wheel-chip tyre-wheel-chip--front" data-tyre-row="FL"><i>FL</i><b id="curveFLMu">1.136</b></span>
-              <span class="tyre-wheel-chip tyre-wheel-chip--front" data-tyre-row="FR"><i>FR</i><b id="curveFRMu">1.275</b></span>
-              <span class="tyre-wheel-chip tyre-wheel-chip--rear" data-tyre-row="RL"><i>RL</i><b id="curveRLMu">1.230</b></span>
-              <span class="tyre-wheel-chip tyre-wheel-chip--rear" data-tyre-row="RR"><i>RR</i><b id="curveRRMu">1.303</b></span>
-            </div>
-          </div>
 
-          <div class="tyre-force-plot" aria-label="前轴与后轴轮胎的 μ × Fz 抓地力随 Fz 变化">
-            <div class="tyre-force-head">
-              <strong>μ × Fz / FZ CURVE</strong>
-              <span>抓地力 vs 轮荷 · 四点 = 当前四轮</span>
-            </div>
-            <svg id="tyreForceSvg" viewBox="0 0 760 210" role="img" aria-label="前轴与后轴轮胎的 μ × Fz 抓地力随垂向载荷变化的曲线，四个标记点为当前轮胎状态">
-              <g id="tyreForceGrid" class="tyre-curve-grid"></g>
-              <g id="tyreForceAxes" class="tyre-curve-axes"></g>
-              <path id="tyreForceFrontLine" class="tyre-curve-line tyre-curve-line--front" fill="none"></path>
-              <path id="tyreForceRearLine" class="tyre-curve-line tyre-curve-line--rear" fill="none"></path>
-              <g id="tyreForcePoints" class="tyre-curve-points"></g>
-            </svg>
-            <div class="tyre-curve-legend tyre-force-legend">
-              <span><i class="tyre-legend-line tyre-legend-line--front"></i>前轴 μ×Fz</span>
-              <span><i class="tyre-legend-line tyre-legend-line--rear"></i>后轴 μ×Fz</span>
-              <span><i class="tyre-legend-dot"></i>空心 = 内侧，实心 = 外侧</span>
+            <div class="tyre-force-plot tyre-chart-card" aria-label="前轴与后轴轮胎的 μ × Fz 抓地力随 Fz 变化">
+              <div class="tyre-chart-head">
+                <strong>μ×Fz–Fz CURVE</strong>
+                <span>抓地力随轮荷变化 · 四点为四轮当前载荷</span>
+              </div>
+              <svg id="tyreForceSvg" viewBox="0 0 340 400" role="img" aria-label="前轴与后轴轮胎的 μ × Fz 抓地力随垂向载荷变化的曲线，四个标记点为当前轮胎状态">
+                <g id="tyreForceGrid" class="tyre-curve-grid"></g>
+                <g id="tyreForceAxes" class="tyre-curve-axes"></g>
+                <path id="tyreForceFrontLine" class="tyre-curve-line tyre-curve-line--front" fill="none"></path>
+                <path id="tyreForceRearLine" class="tyre-curve-line tyre-curve-line--rear" fill="none"></path>
+                <g id="tyreForcePoints" class="tyre-curve-points"></g>
+              </svg>
+              <div class="tyre-curve-legend">
+                <span><i class="tyre-legend-line tyre-legend-line--front"></i>前轴 μ×Fz</span>
+                <span><i class="tyre-legend-line tyre-legend-line--rear"></i>后轴 μ×Fz</span>
+                <span><i class="tyre-legend-dot"></i>空心 = 内侧，实心 = 外侧</span>
+              </div>
             </div>
           </div>
 
@@ -717,9 +713,9 @@
       <details class="panel source-panel">
         <summary>
           <div class="source-summary">
-            <span class="eyebrow">MODEL / PROVENANCE</span>
+            <span class="eyebrow">MODEL / ASSUMPTIONS</span>
             <span class="source-summary-title">数据来源、公式与模型边界</span>
-            <span class="source-summary-hint" id="sourceSummaryHint">AC解包 · 轮胎 μ(Fz) · 19 款车型</span>
+            <span class="source-summary-hint" id="sourceSummaryHint">AC 解包 · 轮胎 μ(Fz) · 19 款车型</span>
           </div>
           <span class="summary-toggle" aria-hidden="true"></span>
         </summary>
@@ -757,8 +753,8 @@ U = F_res,axle / Fgrip,axle</code></pre>
               <li>轮胎曲线使用 AC 解包的 <b>FZ0 / DY_REF / LS_EXPY</b>；所载 19 款车的轮胎段均无 <b>DY_CURVE</b>，因此使用上式幂律；FRONT / REAR 分别计算，WIDTH 不进入 μ(Fz)。未建模 Camber / Toe / 温度 / 压力。</li>
               <li>AC 胶料参数只读；自定义模式可改 <b>μ_ref / k</b>，<b>FZ0</b> 继承上一次 AC 胶料。</li>
               <li>制动默认取所选车型 <b>brakes.ini</b>（均 COCKPIT_ADJUSTABLE = 0），页内可调；驱动默认取所选车型 drivetrain.ini，可选 FWD / AWD（AWD 固定 50/50）。纵向力分配与滑移无关，但仍决定每轴 Fx 和联合利用率。未建模 EBD。</li>
-              <li>3D 底盘的轴距 / 轮距会按所选车型缩放，但悬架架构与连接点仍是<b>通用简化示意</b>，不逐车复刻硬点。</li>
-              <li>ARB 的 AC 原文件注释与 CSP 文档在单位表述上存在差异；四车均按等效轮端 N/m 读取。</li>
+              <li>3D 底盘的轴距、轮距、悬架架构与硬点按所选车型数据绘制；AC 数据缺少减震器上支点时由几何推导，车身与防倾杆外形为示意。</li>
+              <li>ARB 的 AC 原文件注释与 CSP 文档在单位表述上存在差异；所载车型均按等效轮端 N/m 读取。</li>
             </ul>
           </div>
         </div>
@@ -769,7 +765,7 @@ U = F_res,axle / Fgrip,axle</code></pre>
   <footer class="site-footer">
     <span>Cornering Lab · Assetto Corsa multi-car</span>
     <span class="footer-sep" aria-hidden="true"></span>
-    <span>STEADY-STATE MECHANISM DEMO</span>
+    <span>STEADY-STATE MODEL · NOT A LAP-TIME SIM</span>
     <span class="footer-sep" aria-hidden="true"></span>
     <span>3D: Three.js r149 · MIT</span>
   </footer>

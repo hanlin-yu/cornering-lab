@@ -3311,26 +3311,34 @@ input:focus-visible {
   align-items: stretch;
 }
 
-.tyre-plot {
-  display: flex;
+.tyre-chart-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
   flex: 1;
+  min-height: 0;
+  margin-top: 14px;
+}
+
+.tyre-chart-card {
+  display: flex;
   flex-direction: column;
   justify-content: center;
   min-width: 0;
-  margin-top: 14px;
   padding: 9px 12px 8px;
   border: 1px solid rgba(170, 201, 213, 0.1);
   border-radius: 14px;
   background:
-    radial-gradient(ellipse at 55% 40%, rgba(48, 121, 127, 0.1), transparent 58%),
+    radial-gradient(ellipse at 55% 40%, rgba(48, 121, 127, 0.09), transparent 60%),
     rgba(4, 10, 13, 0.3);
 }
 
-.tyre-plot svg {
+.tyre-chart-card svg {
   display: block;
   width: 100%;
   height: auto;
   min-height: 150px;
+  margin-top: 3px;
   overflow: visible;
 }
 
@@ -3464,64 +3472,7 @@ input:focus-visible {
   box-shadow: inset 2px 0 var(--front);
 }
 
-.tyre-wheel-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 5px;
-  margin-top: 8px;
-  padding-top: 8px;
-  border-top: 1px solid var(--line);
-}
-
-.tyre-wheel-chip {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 5px;
-  padding: 3px 8px;
-  border: 1px solid rgba(170, 201, 213, 0.12);
-  border-radius: 6px;
-  color: #7d9299;
-  background: rgba(5, 12, 16, 0.3);
-  font-family: var(--font-mono);
-  font-size: 9.2px;
-}
-
-.tyre-wheel-chip i {
-  color: #9fb4ba;
-  font-style: normal;
-  letter-spacing: 0.04em;
-}
-
-.tyre-wheel-chip b {
-  color: #d3e3e7;
-  font-size: 11.8px;
-  font-weight: 400;
-  font-variant-numeric: tabular-nums;
-}
-
-.tyre-wheel-chip--front b {
-  color: #b8f4f1;
-}
-
-.tyre-wheel-chip--rear b {
-  color: #f4cf9a;
-}
-
-.tyre-wheel-chip.is-lifted {
-  opacity: 0.42;
-}
-
-.tyre-force-plot {
-  margin-top: 10px;
-  padding: 9px 12px 8px;
-  border: 1px solid rgba(170, 201, 213, 0.1);
-  border-radius: 14px;
-  background:
-    radial-gradient(ellipse at 55% 30%, rgba(48, 121, 127, 0.08), transparent 60%),
-    rgba(4, 10, 13, 0.3);
-}
-
-.tyre-force-head {
+.tyre-chart-head {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
@@ -3531,28 +3482,15 @@ input:focus-visible {
   font-family: var(--font-mono);
 }
 
-.tyre-force-head strong {
+.tyre-chart-head strong {
   color: #b8cdd3;
   font-size: 9.4px;
   font-weight: 400;
   letter-spacing: 0.04em;
 }
 
-.tyre-force-head span {
+.tyre-chart-head span {
   font-size: 8px;
-}
-
-.tyre-force-plot svg {
-  display: block;
-  width: 100%;
-  height: auto;
-  min-height: 135px;
-  margin-top: 3px;
-  overflow: visible;
-}
-
-.tyre-force-legend {
-  padding-top: 5px;
 }
 
 .tyre-curve-side {
@@ -4666,6 +4604,12 @@ input:focus-visible {
 
   .footer-sep {
     width: 10px;
+  }
+}
+
+@media (max-width: 560px) {
+  .tyre-chart-row {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
