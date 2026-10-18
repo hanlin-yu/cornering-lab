@@ -774,7 +774,8 @@ input:focus-visible {
 }
 
 .g-vehicle-state[data-state="grip"] { --state-color: #7d949c; }
-.g-vehicle-state[data-state="axle-limit"] { --state-color: #a4b6bc; }
+.g-vehicle-state[data-state="mid-corner-understeer"] { --state-color: #67e0a3; }
+.g-vehicle-state[data-state="mid-corner-oversteer"] { --state-color: #ffa94d; }
 .g-vehicle-state[data-state="power-over"] { --state-color: #ff7a2f; }
 .g-vehicle-state[data-state="power-under"] { --state-color: #35d5df; }
 .g-vehicle-state[data-state="front-lock"] { --state-color: #ffd166; }
@@ -857,6 +858,8 @@ input:focus-visible {
   white-space: nowrap;
 }
 
+.g-state-key span[data-state="mid-corner-understeer"] { --state-color: #67e0a3; }
+.g-state-key span[data-state="mid-corner-oversteer"] { --state-color: #ffa94d; }
 .g-state-key span[data-state="power-over"] { --state-color: #ff7a2f; }
 .g-state-key span[data-state="power-under"] { --state-color: #35d5df; }
 .g-state-key span[data-state="front-lock"] { --state-color: #ffd166; }
@@ -2465,6 +2468,310 @@ input:focus-visible {
   animation: reveal 0.8s 0.17s both;
 }
 
+.status-topline {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.balance-delta-chip {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: baseline;
+  gap: 3px;
+  padding: 2px 7px;
+  border: 1px solid color-mix(in srgb, var(--state-color) 24%, transparent);
+  border-radius: 999px;
+  color: var(--state-color);
+  background: rgba(4, 10, 13, 0.3);
+  font-family: var(--font-mono);
+  font-size: 7.5px;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.balance-delta-chip b {
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+}
+
+.balance-delta-chip small {
+  color: var(--faint);
+  font-size: 7px;
+}
+
+.balance-strip {
+  margin-top: 10px;
+}
+
+.balance-strip-track {
+  position: relative;
+  height: 5px;
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    rgba(89, 217, 211, 0.72),
+    rgba(200, 220, 223, 0.22) 50%,
+    rgba(242, 178, 94, 0.78)
+  );
+}
+
+.balance-strip-track::after {
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  left: 50%;
+  width: 1px;
+  content: "";
+  background: rgba(224, 242, 245, 0.3);
+}
+
+.balance-strip-track i {
+  position: absolute;
+  top: -3px;
+  left: 50%;
+  width: 2px;
+  height: 11px;
+  border-radius: 2px;
+  background: #eef9fa;
+  box-shadow: 0 0 7px rgba(89, 217, 211, 0.75);
+  transform: translateX(-50%);
+  transition: left 0.25s ease;
+}
+
+.balance-strip-labels {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 3px;
+  color: #61777f;
+  font-family: var(--font-mono);
+  font-size: 7.4px;
+  letter-spacing: 0.02em;
+}
+
+.balance-strip-labels span:nth-child(2) {
+  color: #91a7ae;
+  letter-spacing: 0.13em;
+}
+
+.axle-ledger {
+  margin-top: 13px;
+  padding: 11px 12px 9px;
+  border: 1px solid rgba(170, 201, 213, 0.12);
+  border-radius: 14px;
+  background: rgba(4, 10, 13, 0.26);
+}
+
+.axle-ledger-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(170, 201, 213, 0.1);
+}
+
+.axle-ledger-heading .eyebrow {
+  font-size: 8px;
+  letter-spacing: 0.12em;
+}
+
+.axle-ledger-heading h3 {
+  margin: 2px 0 0;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.axle-ledger-total {
+  color: var(--faint);
+  font-family: var(--font-mono);
+  font-size: 8px;
+  white-space: nowrap;
+}
+
+.axle-ledger-total b {
+  color: #e6f2f4;
+  font-size: 16px;
+  font-weight: 400;
+  letter-spacing: -0.03em;
+}
+
+.axle-ledger-total small {
+  margin-left: 2px;
+  font-size: 7.5px;
+}
+
+.axle-ledger-row {
+  padding: 10px 0 9px;
+  border-bottom: 1px solid rgba(170, 201, 213, 0.075);
+}
+
+.axle-ledger-row:last-of-type {
+  border-bottom: 0;
+}
+
+.axle-ledger-row-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.axle-ledger-name {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+
+.axle-ledger-name b {
+  color: #e4eef1;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.axle-ledger-name small {
+  overflow: hidden;
+  color: #6f858d;
+  font-family: var(--font-mono);
+  font-size: 7.7px;
+  letter-spacing: 0.01em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.axle-ledger-name .axle-dot {
+  flex: 0 0 auto;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+}
+
+.axle-ledger-row--front .axle-dot {
+  background: var(--front);
+  box-shadow: 0 0 6px var(--front);
+}
+
+.axle-ledger-row--rear .axle-dot {
+  background: var(--rear);
+  box-shadow: 0 0 6px var(--rear);
+}
+
+.axle-ledger-util {
+  color: #d8e7ea;
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+}
+
+.axle-ledger-util.is-over {
+  color: var(--danger);
+}
+
+.axle-ledger-bar {
+  height: 4px;
+  margin-top: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(170, 201, 213, 0.1);
+}
+
+.axle-ledger-bar > span {
+  display: block;
+  width: 0;
+  height: 100%;
+  border-radius: inherit;
+  transition: width 0.25s ease;
+}
+
+.axle-ledger-row--front .axle-ledger-bar > span {
+  background: var(--front);
+}
+
+.axle-ledger-row--rear .axle-ledger-bar > span {
+  background: var(--rear);
+}
+
+.axle-ledger-bar > span.is-over {
+  background: var(--danger);
+}
+
+.axle-ledger-values {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin-top: 7px;
+  color: #728890;
+  font-family: var(--font-mono);
+  font-size: 8px;
+}
+
+.axle-ledger-values span {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 3px;
+  white-space: nowrap;
+}
+
+.axle-ledger-values b {
+  color: #d3e3e7;
+  font-size: 11.5px;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+}
+
+.axle-ledger-values b.is-over {
+  color: var(--danger);
+}
+
+.axle-ledger-values small {
+  color: #667c84;
+  font-size: 7px;
+}
+
+.axle-ledger-detail {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px 12px;
+  margin-top: 5px;
+  color: #667c84;
+  font-family: var(--font-mono);
+  font-size: 7.8px;
+  line-height: 1.4;
+}
+
+.axle-ledger-detail b {
+  color: #a8bec5;
+  font-weight: 400;
+}
+
+.axle-ledger-foot {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 12px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(170, 201, 213, 0.09);
+  color: #667c84;
+  font-family: var(--font-mono);
+  font-size: 8px;
+}
+
+.axle-ledger-foot b {
+  color: #c6d9de;
+  font-weight: 400;
+}
+
+.axle-ledger-foot .is-over {
+  color: var(--danger);
+}
+
 .balance-heading {
   align-items: flex-start;
 }
@@ -2933,8 +3240,33 @@ input:focus-visible {
    -------------------------------------------------------------------------- */
 
 .tyre-curve-panel {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
   padding: 18px 20px 17px;
   animation: reveal 0.8s 0.19s both;
+}
+
+.tyre-model-chip {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: baseline;
+  gap: 6px;
+  padding: 4px 8px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--faint);
+  background: rgba(4, 10, 13, 0.3);
+  font-family: var(--font-mono);
+  font-size: 7.5px;
+  white-space: nowrap;
+}
+
+.tyre-model-chip b {
+  color: var(--front);
+  font-size: 9px;
+  font-weight: 400;
+  letter-spacing: 0.03em;
 }
 
 .tyre-curve-head {
@@ -2979,7 +3311,12 @@ input:focus-visible {
 }
 
 .tyre-plot {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  justify-content: center;
   min-width: 0;
+  margin-top: 14px;
   padding: 9px 12px 8px;
   border: 1px solid rgba(170, 201, 213, 0.1);
   border-radius: 14px;
@@ -3123,6 +3460,53 @@ input:focus-visible {
   border: 1px solid #d5e6e9;
   border-radius: 50%;
   box-shadow: inset 2px 0 var(--front);
+}
+
+.tyre-wheel-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+}
+
+.tyre-wheel-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  padding: 3px 7px;
+  border: 1px solid rgba(170, 201, 213, 0.12);
+  border-radius: 6px;
+  color: #7d9299;
+  background: rgba(5, 12, 16, 0.3);
+  font-family: var(--font-mono);
+  font-size: 8px;
+}
+
+.tyre-wheel-chip i {
+  color: #9fb4ba;
+  font-style: normal;
+  letter-spacing: 0.04em;
+}
+
+.tyre-wheel-chip b {
+  color: #d3e3e7;
+  font-size: 10px;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+}
+
+.tyre-wheel-chip--front b {
+  color: #b8f4f1;
+}
+
+.tyre-wheel-chip--rear b {
+  color: #f4cf9a;
+}
+
+.tyre-wheel-chip.is-lifted {
+  opacity: 0.42;
 }
 
 .tyre-curve-side {

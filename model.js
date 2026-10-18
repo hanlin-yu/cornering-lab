@@ -1643,6 +1643,20 @@
       direction: 'accel',
       axle: 'front'
     }),
+    midCornerUndersteer: Object.freeze({
+      code: 'mid-corner-understeer',
+      label: '弯中推头',
+      labelEn: 'MID-CORNER UNDERSTEER',
+      direction: 'mid',
+      axle: 'front'
+    }),
+    midCornerOversteer: Object.freeze({
+      code: 'mid-corner-oversteer',
+      label: '弯中甩尾',
+      labelEn: 'MID-CORNER OVERSTEER',
+      direction: 'mid',
+      axle: 'rear'
+    }),
     frontLock: Object.freeze({
       code: 'front-lock',
       label: '前轮抱死',
@@ -1681,7 +1695,9 @@
     if (longitudinalG < -VEHICLE_STATE_LONG_THRESHOLD_G) {
       return frontOver ? VEHICLE_STATES.frontLock : VEHICLE_STATES.rearLock;
     }
-    return null;
+    return frontOver
+      ? VEHICLE_STATES.midCornerUndersteer
+      : VEHICLE_STATES.midCornerOversteer;
   }
 
   function clamp(value, min, max) {

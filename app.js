@@ -40,6 +40,8 @@
   var G_DELTA_SCALE_PP = 25;
   var G_STATE_ORDER = [
     'loss-of-control',
+    'mid-corner-understeer',
+    'mid-corner-oversteer',
     'power-over',
     'power-under',
     'front-lock',
@@ -50,6 +52,8 @@
     G_STATE_INDEX[code] = index + 1;
   });
   var G_STATE_COLORS = {
+    'mid-corner-understeer': [103, 224, 163],
+    'mid-corner-oversteer': [255, 169, 77],
     'power-over': [255, 122, 47],
     'power-under': [53, 213, 223],
     'front-lock': [255, 209, 102],
@@ -57,6 +61,8 @@
     'loss-of-control': [183, 140, 255]
   };
   var G_STATE_DESCRIPTIONS = {
+    'mid-corner-understeer': '纵向 G 接近 0；侧向主导时前轴先达到 100% 联合利用率',
+    'mid-corner-oversteer': '纵向 G 接近 0；侧向主导时后轴先达到 100% 联合利用率',
     'power-over': '加速时后轴先达到 100% 联合利用率',
     'power-under': '加速时前轴先达到 100% 联合利用率',
     'front-lock': '减速时前轴先达到 100% 联合利用率',
@@ -597,18 +603,6 @@
     setText('tyreFz0Readout',
       formatTyrePairInt(state.tireFz0N, state.tireRearFz0N));
     setText('curveTyreName', currentTyreName());
-    setText('curveMuRef',
-      formatTyrePair(state.tireMuRef, state.tireRearMuRef, 3));
-    setText('curveK',
-      formatTyrePair(state.tireLoadSensitivityK, state.tireRearLoadSensitivityK, 3));
-    setText('curveFz0',
-      formatTyrePairInt(state.tireFz0N, state.tireRearFz0N));
-
-    var widthFront = Math.round(state.tireWidthM * 1000);
-    var widthRear = Math.round(state.tireRearWidthM * 1000);
-    setText('tyreWidthNote',
-      'AC WIDTH：前 ' + widthFront + ' / 后 ' + widthRear +
-      ' mm。WIDTH 不进入这条 AC 载荷敏感幂律；前后轴分别使用各自的 FZ0 / LS_EXPY，曲线可能分开。曲线只随轮荷变化，忽略轮胎滑移对 μ 的影响。');
     updateVehicleBar();
   }
 
@@ -1135,28 +1129,56 @@
     var placed = [];
     var labelCount = 0;
     var perStateCount = {};
+    var offsets = [
+      [0, 0], [0, -15], [0, 15], [-18, 0], [18, 0],
+      [-18, -14], [18, -14], [-18, 14], [18, 14]
+    ];
     candidates.forEach(function (candidate) {
-      if (labelCount >= 8) {
+      if (labelCount >= 7) {
         return;
       }
       var stateCount = perStateCount[candidate.code] || 0;
-      if (stateCount >= 2) {
+      if (stateCount >= 1) {
         return;
       }
-      var x = clamp(
+      var baseX = clamp(
         candidate.x,
         G_PAD.left + 22,
         G_PAD.width - G_PAD.right - 22
       );
-      var y = clamp(
+      var baseY = clamp(
         candidate.y + 3,
         G_PAD.top + 12,
         G_PAD.bottom - 8
       );
-      for (var i = 0; i < placed.length; i += 1) {
-        if (Math.hypot(placed[i].x - x, placed[i].y - y) < 46) {
-          return;
+      var x = null;
+      var y = null;
+      for (var offsetIndex = 0; offsetIndex < offsets.length; offsetIndex += 1) {
+        var testX = clamp(
+          baseX + offsets[offsetIndex][0],
+          G_PAD.left + 22,
+          G_PAD.width - G_PAD.right - 22
+        );
+        var testY = clamp(
+          baseY + offsets[offsetIndex][1],
+          G_PAD.top + 12,
+          G_PAD.bottom - 8
+        );
+        var collides = false;
+        for (var i = 0; i < placed.length; i += 1) {
+          if (Math.hypot(placed[i].x - testX, placed[i].y - testY) < 42) {
+            collides = true;
+            break;
+          }
         }
+        if (!collides) {
+          x = testX;
+          y = testY;
+          break;
+        }
+      }
+      if (x === null) {
+        return;
       }
       var color = G_STATE_COLORS[candidate.code];
       if (!color) {
@@ -1309,12 +1331,6 @@
       label = result.vehicleState.label;
       labelEn = result.vehicleState.labelEn;
       description = G_STATE_DESCRIPTIONS[code] || '';
-    } else if (result.axleLimitReached) {
-      code = 'axle-limit';
-      label = '单轴极限';
-      labelEn = 'AXLE LIMIT';
-      description = '有轴达到 100%，但纵向 G 未超过 ±' +
-        model.VEHICLE_STATE_LONG_THRESHOLD_G.toFixed(2) + ' g';
     } else {
       code = 'grip';
       label = '抓地内';
@@ -1721,12 +1737,6 @@
     setText('frontLatForceValue', formatForce(result.lateralDemand.front));
     setText('rearLatForceValue', formatForce(result.lateralDemand.rear));
 
-    setText('frontUtilCardValue', formatPercent(result.utilisation.front));
-    setText('rearUtilCardValue', formatPercent(result.utilisation.rear));
-
-    setBarWidth($('frontUtilBarCard'), result.utilisation.front);
-    setBarWidth($('rearUtilBarCard'), result.utilisation.rear);
-
     var frontReserve = result.margin.front;
     var rearReserve = result.margin.rear;
     var frontReserveElement = $('frontReserveValue');
@@ -1734,32 +1744,19 @@
 
     if (frontReserveElement) {
       frontReserveElement.textContent = (frontReserve >= 0 ? '+' : '−') +
-        Math.abs(frontReserve / 1000).toFixed(2) + ' kN ' + (frontReserve >= 0 ? '余量' : '超限');
+        Math.abs(frontReserve / 1000).toFixed(2);
       frontReserveElement.classList.toggle('is-over', frontReserve < 0);
     }
     if (rearReserveElement) {
       rearReserveElement.textContent = (rearReserve >= 0 ? '+' : '−') +
-        Math.abs(rearReserve / 1000).toFixed(2) + ' kN ' + (rearReserve >= 0 ? '余量' : '超限');
+        Math.abs(rearReserve / 1000).toFixed(2);
       rearReserveElement.classList.toggle('is-over', rearReserve < 0);
     }
 
-    var frontTransferPct = (result.loadTransferRatio.front * 100).toFixed(1);
-    var rearTransferPct = (result.loadTransferRatio.rear * 100).toFixed(1);
-    setText('frontTransferPct', frontTransferPct);
-    setText('rearTransferPct', rearTransferPct);
-    setText('frontTransferAbs', ' · ' + formatForce(result.frontLoadTransfer) + ' kN');
-    setText('rearTransferAbs', ' · ' + formatForce(result.rearLoadTransfer) + ' kN');
-    setText('frontRollShareValue', (result.rollStiffness.frontShare * 100).toFixed(1));
-    setText('rearRollShareValue', (result.rollStiffness.rearShare * 100).toFixed(1));
-    setText('frontWheelLoadsValue',
-      formatForce(result.wheelLoads.frontOuter) + ' / ' + formatForce(result.wheelLoads.frontInner));
-    setText('rearWheelLoadsValue',
-      formatForce(result.wheelLoads.rearOuter) + ' / ' + formatForce(result.wheelLoads.rearInner));
-    setText('frontWheelRateValue', (result.springRates.frontNmm).toFixed(1));
-    setText('rearWheelRateValue', (result.springRates.rearNmm).toFixed(1));
-
-    toggleClass($('frontUtilCardValue'), 'is-over', result.utilisation.front >= 1);
-    toggleClass($('rearUtilCardValue'), 'is-over', result.utilisation.rear >= 1);
+    setText('frontTransferPct', (result.loadTransferRatio.front * 100).toFixed(1));
+    setText('rearTransferPct', (result.loadTransferRatio.rear * 100).toFixed(1));
+    setText('frontTransferAbs', formatForce(result.frontLoadTransfer));
+    setText('rearTransferAbs', formatForce(result.rearLoadTransfer));
   }
 
   function updateBalance(result) {
@@ -1786,16 +1783,10 @@
       deltaElement.textContent = formatSigned(result.deltaPP, 1);
     }
 
-    var needleAngle = -clamp(result.deltaPP / 8, -1, 1) * 70;
-    var needleGroup = $('needleGroup');
-    if (needleGroup) {
-      needleGroup.style.transform = 'rotate(' + needleAngle.toFixed(2) + 'deg)';
-    }
-
-    var gauge = $('balanceGauge');
-    if (gauge) {
-      gauge.setAttribute('aria-label',
-        '转向平衡仪表：' + copy.cn + '，前轴减后轴利用率差 ' + formatSigned(result.deltaPP, 1) + ' 个百分点。');
+    var balanceMarker = $('balanceStripMarker');
+    if (balanceMarker) {
+      var balanceFraction = clamp((result.deltaPP + 8) / 16, 0, 1);
+      balanceMarker.style.left = ((1 - balanceFraction) * 100).toFixed(2) + '%';
     }
 
     setBarWidth($('frontUtilBar'), result.utilisation.front);
@@ -1807,7 +1798,6 @@
 
     setText('totalGripValue', formatForce(result.grip.total));
     setText('totalDemandValue', formatForce(result.demand.total));
-    setBarWidth($('totalGripBar'), result.utilisation.total);
 
     var headroom = $('totalHeadroomValue');
     if (headroom) {
@@ -1816,7 +1806,6 @@
       headroom.classList.toggle('is-over', result.margin.total < 0);
     }
 
-    updateExplanation(result);
     updateWarnings(result);
   }
 
