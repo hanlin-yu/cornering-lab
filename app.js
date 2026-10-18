@@ -205,12 +205,27 @@
       RL: result.wheelLoads.rearInner,
       RR: result.wheelLoads.rearOuter
     };
+    var staticMap = {
+      FL: result.staticLoads.frontWheel,
+      FR: result.staticLoads.frontWheel,
+      RL: result.staticLoads.rearWheel,
+      RR: result.staticLoads.rearWheel
+    };
 
     ['FL', 'FR', 'RL', 'RR'].forEach(function (wheelId) {
       var element = document.querySelector('[data-wheel-load="' + wheelId + '"]');
       if (element) {
         element.textContent = formatForce(loadMap[wheelId]);
       }
+
+      var staticLoad = staticMap[wheelId];
+      var changePct = staticLoad > 0 ? ((loadMap[wheelId] - staticLoad) / staticLoad) * 100 : 0;
+      var deltaElement = document.querySelector('[data-wheel-delta="' + wheelId + '"]');
+      if (deltaElement) {
+        var sign = changePct > 0.05 ? '+' : changePct < -0.05 ? '−' : '';
+        deltaElement.textContent = '(' + sign + Math.abs(changePct).toFixed(1) + '%)';
+      }
+
       var label = document.querySelector('[data-wheel-label="' + wheelId + '"]');
       if (label) {
         var lifted = wheelId === 'FL' ? result.wheelLift.front :
@@ -307,10 +322,6 @@
     var rearTransferPct = (result.loadTransferRatio.rear * 100).toFixed(1);
     setText('frontTransferPct', frontTransferPct);
     setText('rearTransferPct', rearTransferPct);
-    setText('frontTransferLabelPct', frontTransferPct);
-    setText('rearTransferLabelPct', rearTransferPct);
-    setText('mobileFrontTransfer', frontTransferPct);
-    setText('mobileRearTransfer', rearTransferPct);
     setText('frontTransferAbs', ' · ' + formatForce(result.frontLoadTransfer) + ' kN');
     setText('rearTransferAbs', ' · ' + formatForce(result.rearLoadTransfer) + ' kN');
     setText('frontRollShareValue', (result.rollStiffness.frontShare * 100).toFixed(1));

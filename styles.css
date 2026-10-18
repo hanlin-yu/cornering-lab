@@ -1247,7 +1247,8 @@ input:focus-visible {
   grid-template-columns: auto auto;
   grid-template-areas:
     "code side"
-    "load load";
+    "load load"
+    "delta delta";
   align-items: baseline;
   min-width: 82px;
   padding: 6px 8px 7px;
@@ -1300,6 +1301,17 @@ input:focus-visible {
   letter-spacing: 0.02em;
 }
 
+.wheel-label-delta {
+  grid-area: delta;
+  justify-self: start;
+  margin-top: 1px;
+  color: color-mix(in srgb, var(--wheel-color) 62%, #d7e7ea);
+  font-family: var(--font-mono);
+  font-size: 9.8px;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+
 .wheel-label.is-lifted {
   border-color: rgba(255, 124, 111, 0.32);
   border-left-color: var(--danger);
@@ -1308,35 +1320,6 @@ input:focus-visible {
 
 .wheel-label.is-lifted .wheel-label-load {
   color: var(--danger);
-}
-
-.part-label {
-  position: absolute;
-  top: 0;
-  left: 0;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 4px 6px;
-  border: 1px solid rgba(242, 178, 94, 0.32);
-  border-radius: 4px;
-  color: #f5c177;
-  background: rgba(8, 14, 18, 0.76);
-  font-family: var(--font-mono);
-  font-size: 9.6px;
-  letter-spacing: 0.08em;
-  pointer-events: none;
-  opacity: 0;
-  will-change: transform, opacity;
-  transition: opacity 0.18s ease;
-}
-
-.part-label i {
-  width: 3px;
-  height: 3px;
-  border-radius: 50%;
-  background: var(--rear);
-  box-shadow: 0 0 6px var(--rear);
 }
 
 .datum-label {
@@ -1391,50 +1374,6 @@ input:focus-visible {
   color: var(--front);
 }
 
-.transfer-label {
-  --transfer-color: var(--front);
-  position: absolute;
-  top: 0;
-  left: 0;
-  display: inline-flex;
-  align-items: baseline;
-  gap: 4px;
-  padding: 4px 6px;
-  border: 1px solid rgba(170, 201, 213, 0.14);
-  border-left: 2px solid var(--transfer-color);
-  border-radius: 5px;
-  color: #aebfc5;
-  background: rgba(8, 14, 18, 0.76);
-  font-family: var(--font-mono);
-  font-size: 9.5px;
-  letter-spacing: 0.035em;
-  pointer-events: none;
-  opacity: 0;
-  will-change: transform, opacity;
-  transition: opacity 0.18s ease;
-}
-
-.transfer-label--rear {
-  --transfer-color: var(--rear);
-}
-
-.transfer-label > span:first-child {
-  color: var(--transfer-color);
-  font-weight: 600;
-}
-
-.transfer-label b {
-  color: #eff8fa;
-  font-size: 11.5px;
-  font-weight: 400;
-  font-variant-numeric: tabular-nums;
-}
-
-.transfer-label small {
-  color: var(--faint);
-  font-size: 8.4px;
-}
-
 .scene-mobile-metrics {
   position: absolute;
   right: 16px;
@@ -1473,14 +1412,6 @@ input:focus-visible {
 .scene-mobile-metrics small {
   color: var(--faint);
   font-size: 8px;
-}
-
-.scene-mobile-metrics .metric-front {
-  color: var(--front);
-}
-
-.scene-mobile-metrics .metric-rear {
-  color: var(--rear);
 }
 
 /* Bottom HUD */
@@ -3091,9 +3022,7 @@ input:focus-visible {
     min-width: 58px;
   }
 
-  .part-label,
   .datum-label,
-  .transfer-label,
   .scene-telemetry {
     display: none;
   }
@@ -3174,9 +3103,7 @@ input:focus-visible {
 }
 
 @media (max-width: 700px) {
-  .part-label,
   .datum-label,
-  .transfer-label,
   .scene-telemetry {
     display: none;
   }
