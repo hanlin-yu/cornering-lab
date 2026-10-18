@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta name="description" content="GT86 ZN6 3D 底盘、侧倾刚度与前后轴抓地力平衡实验台。">
+  <title>GT86 Cornering Lab · 3D 底盘与抓地平衡</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="ambient ambient-a" aria-hidden="true"></div>
+  <div class="ambient ambient-b" aria-hidden="true"></div>
+
+  <header class="site-header">
+    <div class="brand-lockup">
+      <div class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 44 44" fill="none">
+          <circle cx="22" cy="22" r="15.5" stroke="currentColor" stroke-opacity=".35"/>
+          <path d="M8.8 22h8.1M27.1 22h8.1" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+          <path d="M13.4 13.7c5.2-5.2 12-6.8 17.2-4.8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+          <circle cx="22" cy="22" r="3.2" fill="currentColor"/>
+          <path d="M22 6.5v6M22 31.5v6" stroke="currentColor" stroke-opacity=".45" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div class="brand-copy">
+        <div class="eyebrow">
+          <span class="pulse-dot" aria-hidden="true"></span>
+          ASSETTO CORSA DATA · KS_TOYOTA_GT86
+        </div>
+        <h1>Cornering Lab <span>GT86 / 底盘 · 抓地平衡</span></h1>
+      </div>
+    </div>
+    <div class="header-meta" aria-label="模型说明">
+      <span class="tag">ZN6</span>
+      <span class="tag">SEMISLICKS</span>
+      <span class="tag tag--quiet">STEADY STATE · PURE LATERAL</span>
+    </div>
+  </header>
+
+  <main class="workspace">
+    <aside class="panel control-panel" aria-labelledby="controlsTitle">
+      <div class="panel-heading">
+        <div>
+          <div class="eyebrow">SETUP / LIVE</div>
+          <h2 id="controlsTitle">调校台</h2>
+        </div>
+        <span class="panel-index" aria-hidden="true">01</span>
+      </div>
+
+      <section class="control-section condition-section" aria-labelledby="conditionTitle">
+        <div class="section-heading">
+          <h3 id="conditionTitle">过弯条件 <span>CORNER LOAD</span></h3>
+        </div>
+        <div class="condition-readout">
+          <div class="condition-value">
+            <span id="ayValue">0.85</span><small>g</small>
+          </div>
+          <div class="condition-side">
+            <span>稳态侧向加速度</span>
+            <strong>100 km/h 等径弯 <span id="radiusValue">92 m</span></strong>
+          </div>
+        </div>
+        <label class="sr-only" for="lateralGRange">弯中侧向加速度</label>
+        <input
+          class="range range--neutral"
+          id="lateralGRange"
+          data-param="lateralG"
+          type="range"
+          min="0.20"
+          max="1.40"
+          step="0.01"
+          value="0.85"
+        >
+        <div class="range-scale" aria-hidden="true"><span>0.20</span><span>0.80</span><span>1.40 g</span></div>
+      </section>
+
+      <section class="control-section stiffness-section" aria-labelledby="stiffnessTitle">
+        <div class="section-heading">
+          <h3 id="stiffnessTitle">悬挂刚度 <span>WHEEL-RATE EQUIV.</span></h3>
+        </div>
+
+        <div class="axle-controls axle-controls--front">
+          <div class="axle-control-head">
+            <div class="axle-id"><span class="axle-dot"></span>前轴 <span>FRONT</span></div>
+            <span id="frontStiffnessSummary">62.0 N/mm</span>
+          </div>
+
+          <div class="param-field">
+            <div class="param-row">
+              <label for="frontSpringRange">弹簧率 <span>SPRING</span></label>
+              <div class="param-value">
+                <input
+                  id="frontSpringNumber"
+                  data-param="springFrontNmm"
+                  type="number"
+                  min="8"
+                  max="200"
+                  step="0.1"
+                  value="23.0"
+                  inputmode="decimal"
+                  aria-label="前弹簧率，单位牛每毫米"
+                >
+                <span>N/mm</span>
+              </div>
+            </div>
+            <input
+              class="range range--front"
+              id="frontSpringRange"
+              data-param="springFrontNmm"
+              type="range"
+              min="8"
+              max="200"
+              step="0.1"
+              value="23"
+              aria-label="前弹簧率滑杆"
+            >
+          </div>
+
+          <div class="param-field">
+            <div class="param-row">
+              <label for="frontArbRange">防倾杆 <span>ARB</span></label>
+              <div class="param-value">
+                <input
+                  id="frontArbNumber"
+                  data-param="arbFrontNmm"
+                  type="number"
+                  min="0"
+                  max="80"
+                  step="0.1"
+                  value="39.0"
+                  inputmode="decimal"
+                  aria-label="前防倾杆等效轮端刚度，单位牛每毫米"
+                >
+                <span>N/mm</span>
+              </div>
+            </div>
+            <input
+              class="range range--front"
+              id="frontArbRange"
+              data-param="arbFrontNmm"
+              type="range"
+              min="0"
+              max="80"
+              step="0.1"
+              value="39"
+              aria-label="前防倾杆刚度滑杆"
+            >
+          </div>
+        </div>
+
+        <div class="axle-controls axle-controls--rear">
+          <div class="axle-control-head">
+            <div class="axle-id"><span class="axle-dot"></span>后轴 <span>REAR</span></div>
+            <span id="rearStiffnessSummary">23.0 N/mm</span>
+          </div>
+
+          <div class="param-field">
+            <div class="param-row">
+              <label for="rearSpringRange">弹簧率 <span>SPRING</span></label>
+              <div class="param-value">
+                <input
+                  id="rearSpringNumber"
+                  data-param="springRearNmm"
+                  type="number"
+                  min="8"
+                  max="200"
+                  step="0.1"
+                  value="18.0"
+                  inputmode="decimal"
+                  aria-label="后弹簧率，单位牛每毫米"
+                >
+                <span>N/mm</span>
+              </div>
+            </div>
+            <input
+              class="range range--rear"
+              id="rearSpringRange"
+              data-param="springRearNmm"
+              type="range"
+              min="8"
+              max="200"
+              step="0.1"
+              value="18"
+              aria-label="后弹簧率滑杆"
+            >
+          </div>
+
+          <div class="param-field">
+            <div class="param-row">
+              <label for="rearArbRange">防倾杆 <span>ARB</span></label>
+              <div class="param-value">
+                <input
+                  id="rearArbNumber"
+                  data-param="arbRearNmm"
+                  type="number"
+                  min="0"
+                  max="60"
+                  step="0.1"
+                  value="5.0"
+                  inputmode="decimal"
+                  aria-label="后防倾杆等效轮端刚度，单位牛每毫米"
+                >
+                <span>N/mm</span>
+              </div>
+            </div>
+            <input
+              class="range range--rear"
+              id="rearArbRange"
+              data-param="arbRearNmm"
+              type="range"
+              min="0"
+              max="60"
+              step="0.1"
+              value="5"
+              aria-label="后防倾杆刚度滑杆"
+            >
+          </div>
+        </div>
+
+        <div class="roll-split">
+          <div class="roll-split-head">
+            <span>侧倾刚度分配 <small>ROLL STIFFNESS</small></span>
+            <strong><span id="splitFrontValue">72.4</span><i> / </i><span id="splitRearValue">27.6</span>%</strong>
+          </div>
+          <div class="split-track" aria-hidden="true">
+            <span class="split-front" id="splitFrontBar"></span>
+            <span class="split-rear" id="splitRearBar"></span>
+            <i class="split-marker" aria-hidden="true"></i>
+          </div>
+          <div class="roll-split-foot">
+            <span>FRONT</span>
+            <span id="splitKValue">Kφ 71.6 / 27.3 kNm/rad</span>
+            <span>REAR</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="control-section preset-section" aria-labelledby="presetTitle">
+        <div class="section-heading">
+          <h3 id="presetTitle">调校预设 <span>TUNE PROFILES</span></h3>
+        </div>
+        <div class="preset-grid">
+          <button class="preset-button" type="button" data-preset="stock">
+            <span>GT86 原厂</span>
+            <small>STOCK</small>
+          </button>
+          <button class="preset-button" type="button" data-preset="front">
+            <span>前轴加硬</span>
+            <small>MORE UNDERSTEER</small>
+          </button>
+          <button class="preset-button" type="button" data-preset="rear">
+            <span>后轴加硬</span>
+            <small>MORE OVERSTEER</small>
+          </button>
+          <button class="preset-button preset-button--accent" id="autoBalanceButton" type="button">
+            <span>自动配平</span>
+            <small>SOLVE FRONT ARB</small>
+          </button>
+        </div>
+        <p class="auto-note" id="autoBalanceNote" aria-live="polite"></p>
+      </section>
+
+      <details class="advanced-section">
+        <summary>
+          <span>高级车辆 / 轮胎参数 <small>ADVANCED</small></span>
+          <i aria-hidden="true"></i>
+        </summary>
+        <div class="advanced-grid">
+          <label class="advanced-field">
+            <span>整车质量 <small>MASS · kg</small></span>
+            <input data-param="massKg" type="number" min="900" max="1900" step="5" value="1285" inputmode="decimal">
+          </label>
+          <label class="advanced-field">
+            <span>前轴荷 <small>FRONT · %</small></span>
+            <input id="frontWeightPct" type="number" min="40" max="66" step="0.1" value="57.5" inputmode="decimal">
+          </label>
+          <label class="advanced-field">
+            <span>质心高度 <small>CG · m</small></span>
+            <input data-param="cgHeightM" type="number" min="0.20" max="0.70" step="0.005" value="0.4226" inputmode="decimal">
+          </label>
+          <label class="advanced-field">
+            <span>轮胎基准 μ <small>DY_REF</small></span>
+            <input data-param="tireMuRef" type="number" min="0.60" max="1.80" step="0.01" value="1.28" inputmode="decimal">
+          </label>
+          <label class="advanced-field advanced-field--wide">
+            <span>载荷转移抓地损失 <small>EFFECTIVE k</small></span>
+            <input data-param="loadTransferLoss" type="number" min="0" max="0.6" step="0.01" value="0.30" inputmode="decimal">
+          </label>
+        </div>
+        <p class="advanced-hint">
+          <strong>k</strong> 是用于仪表化的等效线性损失系数，不是 AC 的逐点轮胎曲线；设为 0 可观察“无载荷敏感 = 刚度不改变轴抓地力”。
+        </p>
+        <button class="text-button" id="resetAllButton" type="button">恢复全部 GT86 数据</button>
+      </details>
+
+      <div class="source-badge">
+        <span class="source-badge-label">DATA SOURCE</span>
+        <code>ks_toyota_gt86 / data.acd</code>
+        <span>只读解包 · 含车手 / 无燃油</span>
+      </div>
+    </aside>
+
+    <section class="results" aria-label="计算结果">
+      <div class="hero-grid">
+        <section class="panel viewport" aria-labelledby="viewportTitle">
+          <div class="scene" id="sceneContainer">
+            <div class="scene-loading" id="sceneLoading">
+              <span class="loader-ring" aria-hidden="true"></span>
+              <span>INITIALISING 3D CHASSIS</span>
+            </div>
+            <div class="scene-error" id="sceneError" hidden>
+              <span class="scene-error-code">WEBGL UNAVAILABLE</span>
+              <strong>3D 底盘无法启动</strong>
+              <p>请启用浏览器硬件加速或使用支持 WebGL 的浏览器；数值模拟仍可使用。</p>
+            </div>
+
+            <div class="scene-hud">
+              <div class="scene-topbar">
+                <div class="scene-heading">
+                  <div class="eyebrow">LIVE CHASSIS / 3D VIEW</div>
+                  <h2 id="viewportTitle">3D 底盘受力台</h2>
+                  <div class="scene-subline">
+                    <span class="mini-pill mini-pill--front"><i></i>前轴</span>
+                    <span class="mini-pill mini-pill--rear"><i></i>后轴</span>
+                    <span class="scene-turn">左转 · 载荷转移至外侧</span>
+                  </div>
+                </div>
+                <div class="scene-actions">
+                  <button class="icon-button" id="resetViewButton" type="button" title="恢复默认视角" aria-label="恢复默认视角">
+                    <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                      <path d="M4.8 7.1A6.4 6.4 0 1 1 3.6 10" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+                      <path d="M4.6 3.8v3.6h3.6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+
+              <div class="scene-g-value">
+                <span class="scene-g-label">LATERAL</span>
+                <strong><span id="sceneAyValue">0.85</span><small>g</small></strong>
+                <span class="scene-g-radius">R <span id="sceneRadiusValue">92</span> m @ 100 km/h</span>
+              </div>
+
+              <div class="scene-wheel-labels" aria-hidden="true">
+                <div class="wheel-label wheel-label--front" data-wheel-label="FL">
+                  <span class="wheel-label-code">FL</span>
+                  <span class="wheel-label-load"><b data-wheel-load="FL">—</b><small>kN</small></span>
+                  <span class="wheel-label-side">内侧</span>
+                </div>
+                <div class="wheel-label wheel-label--front" data-wheel-label="FR">
+                  <span class="wheel-label-code">FR</span>
+                  <span class="wheel-label-load"><b data-wheel-load="FR">—</b><small>kN</small></span>
+                  <span class="wheel-label-side">外侧</span>
+                </div>
+                <div class="wheel-label wheel-label--rear" data-wheel-label="RL">
+                  <span class="wheel-label-code">RL</span>
+                  <span class="wheel-label-load"><b data-wheel-load="RL">—</b><small>kN</small></span>
+                  <span class="wheel-label-side">内侧</span>
+                </div>
+                <div class="wheel-label wheel-label--rear" data-wheel-label="RR">
+                  <span class="wheel-label-code">RR</span>
+                  <span class="wheel-label-load"><b data-wheel-load="RR">—</b><small>kN</small></span>
+                  <span class="wheel-label-side">外侧</span>
+                </div>
+                <div class="part-label part-label--arb" data-part-label="frontArb"><i></i>F-ARB</div>
+                <div class="part-label part-label--arb" data-part-label="rearArb"><i></i>R-ARB</div>
+              </div>
+
+              <div class="datum-label datum-label--cog" data-cog-label>
+                <i aria-hidden="true"></i>
+                <span>CoG</span>
+                <b id="cogHeightValue">0.423</b><small>m</small>
+              </div>
+              <div class="datum-label datum-label--g" data-g-label>
+                <span>G</span>
+                <b id="gVectorValue">0.85</b><small>g</small>
+              </div>
+
+              <div class="scene-bottom">
+                <div class="component-legend" aria-label="零件颜色图例">
+                  <span><i class="legend-line legend-line--link"></i>连杆 / LINKAGE</span>
+                  <span><i class="legend-line legend-line--spring"></i>弹簧 / SPRING</span>
+                  <span><i class="legend-line legend-line--arb"></i>ARB / 防倾杆</span>
+                </div>
+                <div class="orbit-hint">
+                  <svg viewBox="0 0 18 18" fill="none" aria-hidden="true">
+                    <path d="M3 9a6 6 0 1 0 1.8-4.3M3.3 4.6v3.1h3.1" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+                  </svg>
+                  拖拽旋转 · 滚轮缩放
+                </div>
+              </div>
+
+              <div class="scene-telemetry">
+                <div>
+                  <span>车身侧倾 / ROLL</span>
+                  <strong><span id="sceneRollValue">2.62</span><small>°</small></strong>
+                </div>
+                <div>
+                  <span>前轴侧倾刚度</span>
+                  <strong><span id="sceneFrontShareValue">72.4</span><small>%</small></strong>
+                </div>
+                <div>
+                  <span>前 / 后轴结构</span>
+                  <strong class="telemetry-structure">STRUT / DWB</strong>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <aside class="panel balance-panel" aria-labelledby="balanceTitle">
+          <div class="panel-heading balance-heading">
+            <div>
+              <div class="eyebrow">HANDLING BALANCE</div>
+              <h2 id="balanceTitle">操控平衡</h2>
+            </div>
+            <span class="live-badge"><i aria-hidden="true"></i>LIVE</span>
+          </div>
+
+          <div class="status-hero" id="statusHero" data-state="understeer">
+            <span class="status-kicker" id="statusKicker">FRONT AXLE SATURATES FIRST</span>
+            <div class="status-word">
+              <span id="statusCn">推头</span>
+              <span id="statusEn">UNDERSTEER</span>
+            </div>
+            <p id="statusSub">前轴利用率更高，前轮先失去侧向余量。</p>
+          </div>
+
+          <div class="gauge-wrap">
+            <svg class="balance-gauge" id="balanceGauge" viewBox="0 0 300 176" role="img" aria-label="转向平衡：前轴减去后轴抓地力利用率差">
+              <defs>
+                <linearGradient id="gaugeGradient" x1="0" y1="0" x2="1" y2="0">
+                  <stop offset="0" stop-color="#5ad7d2"/>
+                  <stop offset=".5" stop-color="#c8dcdf" stop-opacity=".55"/>
+                  <stop offset="1" stop-color="#f2b25e"/>
+                </linearGradient>
+                <filter id="needleGlow" x="-60%" y="-60%" width="220%" height="220%">
+                  <feGaussianBlur stdDeviation="3.2" result="blur"/>
+                  <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+                </filter>
+              </defs>
+              <path class="gauge-track" d="M 34 142 A 116 116 0 0 1 266 142"/>
+              <path class="gauge-arc" d="M 34 142 A 116 116 0 0 1 266 142" stroke="url(#gaugeGradient)"/>
+              <g id="gaugeTicks" class="gauge-ticks"></g>
+              <g id="needleGroup" class="gauge-needle-group">
+                <line class="gauge-needle-glow" x1="150" y1="142" x2="150" y2="54" filter="url(#needleGlow)"/>
+                <line class="gauge-needle" x1="150" y1="142" x2="150" y2="54"/>
+                <circle class="gauge-hub-outer" cx="150" cy="142" r="8"/>
+                <circle class="gauge-hub-inner" cx="150" cy="142" r="3"/>
+              </g>
+              <text class="gauge-end-label" x="26" y="168">UNDERSTEER</text>
+              <text class="gauge-end-label" x="274" y="168" text-anchor="end">OVERSTEER</text>
+              <text class="gauge-center-label" x="150" y="88" text-anchor="middle">NEUTRAL</text>
+            </svg>
+            <div class="gauge-readout">
+              <span>前轴 − 后轴利用率</span>
+              <strong><span id="balanceDeltaValue">+2.5</span><small>pp</small></strong>
+            </div>
+          </div>
+
+          <div class="utilisation-list">
+            <div class="utilisation-row utilisation-row--front">
+              <div class="utilisation-label"><span class="axle-dot"></span>前轴<small>UTIL.</small></div>
+              <div class="utilisation-track"><span id="frontUtilBar"></span></div>
+              <strong id="frontUtilValue">71.4%</strong>
+            </div>
+            <div class="utilisation-row utilisation-row--rear">
+              <div class="utilisation-label"><span class="axle-dot"></span>后轴<small>UTIL.</small></div>
+              <div class="utilisation-track"><span id="rearUtilBar"></span></div>
+              <strong id="rearUtilValue">68.8%</strong>
+            </div>
+          </div>
+
+          <div class="total-grip">
+            <div class="total-grip-head">
+              <span>轴总抓地力之和 <small>GROSS AXLE GRIP</small></span>
+              <strong><span id="totalGripValue">15.24</span><small>kN</small></strong>
+            </div>
+            <div class="total-grip-track"><span id="totalGripBar"></span></div>
+            <div class="total-grip-foot">
+              <span>需求 <b><span id="totalDemandValue">10.70</span> kN</b></span>
+              <span id="totalHeadroomValue">余量 +4.54 kN</span>
+            </div>
+          </div>
+
+          <p class="balance-explanation" id="balanceExplanation"></p>
+          <p class="tuning-hint" id="tuningHint"></p>
+          <div class="warnings" id="warnings" aria-live="polite"></div>
+        </aside>
+      </div>
+
+      <section class="axle-section" aria-labelledby="axleTitle">
+        <div class="section-heading axle-section-heading">
+          <div>
+            <div class="eyebrow">AXLE GRIP / FORCE BUDGET</div>
+            <h2 id="axleTitle">前后轴总抓地力</h2>
+          </div>
+          <p>总抓地力由该轴左右轮共同提供；判定使用「需求 / 总抓地力」的利用率，而不是单纯比较前后绝对值。</p>
+        </div>
+
+        <div class="axle-grid">
+          <article class="panel axle-card axle-card--front" aria-labelledby="frontAxleTitle">
+            <div class="axle-card-head">
+              <div class="axle-card-name">
+                <span class="axle-dot"></span>
+                <div>
+                  <h3 id="frontAxleTitle">前轴 <span>FRONT AXLE</span></h3>
+                  <p>麦弗逊支柱 · 弹簧 + ARB</p>
+                </div>
+              </div>
+              <span class="reserve-badge" id="frontReserveValue">+2.47 kN 余量</span>
+            </div>
+
+            <div class="axle-core">
+              <div class="axle-primary">
+                <span>总抓地力 <small>TOTAL GRIP</small></span>
+                <strong><span id="frontGripValue">8.63</span><small>kN</small></strong>
+              </div>
+              <div class="axle-mini">
+                <span>需求 <small>DEMAND</small></span>
+                <b><span id="frontDemandValue">6.16</span> kN</b>
+              </div>
+              <div class="axle-mini">
+                <span>利用率 <small>UTIL.</small></span>
+                <b id="frontUtilCardValue">71.4%</b>
+              </div>
+            </div>
+
+            <div class="axle-meter">
+              <span id="frontUtilBarCard"></span>
+              <i class="axle-limit-marker" aria-hidden="true"></i>
+            </div>
+            <div class="axle-meter-labels" aria-hidden="true"><span>0</span><span>100% LIMIT</span></div>
+
+            <div class="axle-details">
+              <div>
+                <span>左右载荷转移 <small>ΔFz</small></span>
+                <strong><span id="frontLoadTransferValue">2.16</span> kN</strong>
+              </div>
+              <div>
+                <span>侧倾刚度占比 <small>ROLL SHARE</small></span>
+                <strong><span id="frontRollShareValue">72.4</span>%</strong>
+              </div>
+              <div>
+                <span>外轮 / 内轮载荷 <small>Fz</small></span>
+                <strong><span id="frontWheelLoadsValue">4.70 / 2.55</span> kN</strong>
+              </div>
+              <div>
+                <span>簧 + 杆总轮端 <small>RATE</small></span>
+                <strong><span id="frontWheelRateValue">62.0</span> N/mm</strong>
+              </div>
+            </div>
+          </article>
+
+          <article class="panel axle-card axle-card--rear" aria-labelledby="rearAxleTitle">
+            <div class="axle-card-head">
+              <div class="axle-card-name">
+                <span class="axle-dot"></span>
+                <div>
+                  <h3 id="rearAxleTitle">后轴 <span>REAR AXLE</span></h3>
+                  <p>双叉臂 · 弹簧 + ARB</p>
+                </div>
+              </div>
+              <span class="reserve-badge" id="rearReserveValue">+2.32 kN 余量</span>
+            </div>
+
+            <div class="axle-core">
+              <div class="axle-primary">
+                <span>总抓地力 <small>TOTAL GRIP</small></span>
+                <strong><span id="rearGripValue">6.61</span><small>kN</small></strong>
+              </div>
+              <div class="axle-mini">
+                <span>需求 <small>DEMAND</small></span>
+                <b><span id="rearDemandValue">4.55</span> kN</b>
+              </div>
+              <div class="axle-mini">
+                <span>利用率 <small>UTIL.</small></span>
+                <b id="rearUtilCardValue">68.8%</b>
+              </div>
+            </div>
+
+            <div class="axle-meter">
+              <span id="rearUtilBarCard"></span>
+              <i class="axle-limit-marker" aria-hidden="true"></i>
+            </div>
+            <div class="axle-meter-labels" aria-hidden="true"><span>0</span><span>100% LIMIT</span></div>
+
+            <div class="axle-details">
+              <div>
+                <span>左右载荷转移 <small>ΔFz</small></span>
+                <strong><span id="rearLoadTransferValue">0.81</span> kN</strong>
+              </div>
+              <div>
+                <span>侧倾刚度占比 <small>ROLL SHARE</small></span>
+                <strong><span id="rearRollShareValue">27.6</span>%</strong>
+              </div>
+              <div>
+                <span>外轮 / 内轮载荷 <small>Fz</small></span>
+                <strong><span id="rearWheelLoadsValue">3.06 / 2.30</span> kN</strong>
+              </div>
+              <div>
+                <span>簧 + 杆总轮端 <small>RATE</small></span>
+                <strong><span id="rearWheelRateValue">23.0</span> N/mm</strong>
+              </div>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <details class="panel source-panel">
+        <summary>
+          <div class="source-summary">
+            <span class="eyebrow">MODEL / PROVENANCE</span>
+            <span class="source-summary-title">数据来源、公式与模型边界</span>
+            <span class="source-summary-hint">AC data.acd 只读解包 · 弹簧/ARB 为轮端等效</span>
+          </div>
+          <span class="summary-toggle" aria-hidden="true"></span>
+        </summary>
+
+        <div class="source-content">
+          <div class="source-block">
+            <h4>原始数据 <span>GT86 / ZN6</span></h4>
+            <dl class="data-list">
+              <div><dt>质量</dt><dd>1285 kg <small>TOTALMASS · 含车手 / 无燃油</small></dd></div>
+              <div><dt>轴距</dt><dd>2.570 m <small>WHEELBASE</small></dd></div>
+              <div><dt>前轴荷</dt><dd>57.5% <small>CG_LOCATION = 0.575</small></dd></div>
+              <div><dt>轮距 F / R</dt><dd>1.520 / 1.540 m <small>[FRONT] / [REAR] TRACK</small></dd></div>
+              <div><dt>质心高度</dt><dd>0.423 m <small>RADIUS 0.3126 − BASEY (−0.110)</small></dd></div>
+              <div><dt>弹簧率 F / R</dt><dd>23.0 / 18.0 N/mm <small>SPRING_RATE 23000 / 18000 N/m</small></dd></div>
+              <div><dt>ARB F / R</dt><dd>39.0 / 5.0 N/mm <small>[ARB] 39000 / 5000 N/m · CSP 轮端约定</small></dd></div>
+              <div><dt>轮胎</dt><dd>Semislicks <small>FZ0 2494 N · DY_REF 1.28 · 半径 0.3126 m</small></dd></div>
+              <div><dt>轮胎垂向刚度</dt><dd>262,593 N/m <small>仅用于 3D 轮胎压缩视觉</small></dd></div>
+            </dl>
+            <code class="source-path">…\assettocorsa\content\cars\ks_toyota_gt86\data.acd</code>
+          </div>
+
+          <div class="source-block">
+            <h4>模型链 <span>TRANSPARENT MECHANISM</span></h4>
+            <p class="model-copy">
+              弹簧与 ARB 先合并为各轴轮端刚度，再形成前后侧倾刚度分配。横向载荷转移按该分配进入左右轮；每个轴的总抓地力随载荷转移近似线性下降。利用率决定哪一轴先饱和。
+            </p>
+            <pre class="formula-block"><code>Kφ = (k_spring + k_ARB) · t² / 2
+share_F = Kφ_F / (Kφ_F + Kφ_R)
+ΔFz_F = share_F · m · a_y · h / t_F
+F_grip = μ · Fz_axle − k_loss · |ΔFz|
+U = F_demand / F_grip</code></pre>
+            <h4>边界与假设 <span>LIMITS</span></h4>
+            <ul class="assumption-list">
+              <li>稳态、纯侧向、平地；无空气动力学、差速器锁止、瞬态/转向输入。</li>
+              <li>载荷转移抓地损失使用可调等效系数 <b>k</b>，不是 AC 的逐点 Pacejka 轮胎复刻。</li>
+              <li>3D 底盘按 AC 的 <b>STRUT / DWB</b> 架构、GT86 轴距/轮距与轮端刚度做<b>简化机构示意</b>；不逐点复刻 suspensions.ini 硬点。</li>
+              <li>ARB 的 AC 原文件注释与 CSP 文档在单位表述上存在差异；此处按等效轮端 N/m 读取，所有“轴总抓地力”用于解释趋势，不作绝对圈速预测。</li>
+              <li>原始 data.acd 与游戏文件未被修改。</li>
+            </ul>
+          </div>
+        </div>
+      </details>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <span>Cornering Lab · Toyota GT86 ZN6</span>
+    <span class="footer-sep" aria-hidden="true"></span>
+    <span>STEADY-STATE MECHANISM DEMO · NOT A LAP-TIME SIMULATOR</span>
+    <span class="footer-sep" aria-hidden="true"></span>
+    <span>3D: Three.js r149 · MIT</span>
+  </footer>
+
+  <script src="vendor/three.min.js"></script>
+  <script src="model.js"></script>
+  <script src="scene3d.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
