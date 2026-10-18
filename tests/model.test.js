@@ -307,6 +307,88 @@ test('the four-car garage exposes the unpacked geometry, drivetrain and tyre def
   approx(ecoState.tireVerticalRateNm, 263372, 1e-12, 'GT86 ECO vertical rate');
 });
 
+test('unpacked AC suspension hardpoints drive each car 3D architecture', () => {
+  const gt86 = model.getCarProfile('gt86');
+  assert.equal(gt86.frontSuspension.type, 'STRUT');
+  assert.equal(gt86.frontSuspension.visualType, 'strut');
+  assert.equal(gt86.frontSuspension.springMode, 'strut');
+  assert.deepEqual(gt86.frontSuspension.strutCar, [0.2459, 0.4512, -0.0498]);
+  assert.deepEqual(gt86.frontSuspension.strutTyre, [0.0881, -0.1182, 0.0093]);
+  assert.equal(gt86.rearSuspension.type, 'DWB');
+  assert.equal(gt86.rearSuspension.visualType, 'multilink');
+  assert.equal(gt86.rearSuspension.springMode, 'derived');
+  assert.deepEqual(gt86.rearSuspension.upperFront, [0.4491, 0.0784, 0.1065]);
+
+  ['mx5_nd', 'mx5_cup'].forEach((carId) => {
+    const mx5 = model.getCarProfile(carId);
+    assert.equal(mx5.frontSuspension.type, 'DWB', carId + ' front raw type');
+    assert.equal(mx5.rearSuspension.type, 'DWB', carId + ' rear raw type');
+    assert.equal(mx5.frontSuspension.visualType, 'dwb', carId + ' front visual');
+    assert.equal(mx5.rearSuspension.visualType, 'dwb', carId + ' rear visual');
+    assert.equal(mx5.frontSuspension.springMode, 'derived', carId + ' front spring');
+    assert.equal(mx5.rearSuspension.springMode, 'derived', carId + ' rear spring');
+    assert.deepEqual(mx5.frontSuspension.tyreTop, [0.15479, 0.10951, -0.0321]);
+  });
+  const cup = model.getCarProfile('mx5_cup');
+  assert.deepEqual(cup.rearSuspension.steerCar, [0.3899, -0.03840, 0.1602]);
+
+  const subaru = model.getCarProfile('subaru_22b');
+  assert.equal(subaru.frontSuspension.type, 'STRUT');
+  assert.equal(subaru.frontSuspension.visualType, 'strut');
+  assert.equal(subaru.frontSuspension.springMode, 'strut');
+  // Raw AC rear data is a strut even though the requested visual is multilink.
+  assert.equal(subaru.rearSuspension.type, 'STRUT');
+  assert.equal(subaru.rearSuspension.visualType, 'multilink');
+  assert.equal(subaru.rearSuspension.springMode, 'strut');
+  assert.deepEqual(subaru.rearSuspension.strutCar, [0.222, 0.51, 0]);
+  assert.deepEqual(subaru.rearSuspension.lowerFront, [0.172, -0.050, 0.514]);
+
+  const pointKeys = [
+    'lowerFront', 'lowerRear', 'upperFront', 'upperRear', 'tyreTop',
+    'tyreBottom', 'steerCar', 'steerTyre', 'strutCar', 'strutTyre'
+  ];
+  model.CAR_ORDER.forEach((carId) => {
+    const profile = model.getCarProfile(carId);
+    ['frontSuspension', 'rearSuspension'].forEach((axleKey) => {
+      const axle = profile[axleKey];
+      pointKeys.forEach((key) => {
+        const point = axle[key];
+        if (point === null) {
+          return;
+        }
+        assert.equal(Array.isArray(point), true, `${carId}.${axleKey}.${key} is an array`);
+        assert.equal(point.length, 3, `${carId}.${axleKey}.${key} has 3 coordinates`);
+        point.forEach((value) => {
+          assert.equal(Number.isFinite(value), true, `${carId}.${axleKey}.${key} finite`);
+        });
+      });
+    });
+  });
+});
+
+test('longitudinal demand plus the saturated axle classifies the five limit states', () => {
+  const classify = model.classifyVehicleState;
+
+  assert.equal(classify(0.90, 0.90, 0.50), null);
+  assert.equal(classify(1.10, 0.80, 0.05), null);
+  assert.equal(classify(1.10, 0.80, -0.05), null);
+
+  assert.equal(classify(1.10, 0.80, 0.50).code, 'power-under');
+  assert.equal(classify(0.80, 1.10, 0.50).code, 'power-over');
+  assert.equal(classify(1.10, 0.80, -0.50).code, 'front-lock');
+  assert.equal(classify(0.80, 1.10, -0.50).code, 'rear-lock');
+  assert.equal(classify(1.10, 1.10, 0.50).code, 'loss-of-control');
+  assert.equal(classify(1.10, 1.10, -0.50).code, 'loss-of-control');
+  assert.equal(classify(1.10, 1.10, 0).code, 'loss-of-control');
+
+  assert.equal(classify(1.10, 0.80, 0.50).labelEn, 'POWER UNDER');
+  assert.equal(classify(0.80, 1.10, -0.50).label, '后轮抱死');
+  assert.equal(model.VEHICLE_STATE_LONG_THRESHOLD_G, 0.10);
+
+  const straightGrip = model.calculate(model.cloneBaseState());
+  assert.equal(straightGrip.vehicleState, null);
+});
+
 test('positive lateral G is a right turn and negative lateral G mirrors the loaded side', () => {
   const base = model.cloneBaseState();
   const right = model.calculate({ ...base, lateralG: 0.85 });

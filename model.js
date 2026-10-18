@@ -177,8 +177,38 @@
       driveType: DATA.driveType,
       brakeSource: DATA.brakeBiasSource,
       driveSource: DATA.driveSource,
-      frontSuspension: { type: 'STRUT', name: '麦弗逊支柱' },
-      rearSuspension: { type: 'DWB', name: '双叉臂' },
+      frontSuspension: {
+        type: 'STRUT',
+        name: '麦弗逊支柱',
+        visualType: 'strut',
+        springMode: 'strut',
+        lowerFront: [0.3722, -0.0995, 0.308],
+        lowerRear: [0.4038, -0.1045, -0.0424],
+        upperFront: null,
+        upperRear: null,
+        tyreTop: null,
+        tyreBottom: [0.0881, -0.1182, 0.0093],
+        steerCar: [0.5833, -0.0917, -0.1417],
+        steerTyre: [0.1088, -0.1182, -0.1304],
+        strutCar: [0.2459, 0.4512, -0.0498],
+        strutTyre: [0.0881, -0.1182, 0.0093]
+      },
+      rearSuspension: {
+        type: 'DWB',
+        name: '多连杆',
+        visualType: 'multilink',
+        springMode: 'derived',
+        upperFront: [0.4491, 0.0784, 0.1065],
+        upperRear: [0.497, 0.0767, -0.0601],
+        lowerFront: [0.2861, -0.093, 0.2345],
+        lowerRear: [0.5945, -0.1058, -0.1439],
+        tyreTop: [0.1877, 0.1374, 0.0574],
+        tyreBottom: [0.1485, -0.1278, -0.0422],
+        steerCar: [0.4254, -0.0586, 0.1373],
+        steerTyre: [0.1724, -0.064, 0.1362],
+        strutCar: null,
+        strutTyre: null
+      },
       sourcePath: DATA.sourcePath,
       sourceFile: DATA.sourceFile
     },
@@ -207,8 +237,38 @@
       driveType: 'RWD',
       brakeSource: 'brakes.ini [DATA] FRONT_SHARE = 0.72',
       driveSource: 'drivetrain.ini [TRACTION] TYPE=RWD',
-      frontSuspension: { type: 'DWB', name: '双叉臂' },
-      rearSuspension: { type: 'DWB', name: '双叉臂' },
+      frontSuspension: {
+        type: 'DWB',
+        name: '双叉臂',
+        visualType: 'dwb',
+        springMode: 'derived',
+        upperFront: [0.38302, 0.12311, 0.1348],
+        upperRear: [0.38302, 0.12451, -0.1669],
+        lowerFront: [0.4552, -0.0696, -0.0333],
+        lowerRear: [0.4259, -0.08110, -0.39616],
+        tyreTop: [0.15479, 0.10951, -0.0321],
+        tyreBottom: [0.1005, -0.10102, -0.0025],
+        steerCar: [0.4552, -0.0296, 0.0589],
+        steerTyre: [0.0948, -0.06012, 0.11691],
+        strutCar: null,
+        strutTyre: null
+      },
+      rearSuspension: {
+        type: 'DWB',
+        name: '双叉臂',
+        visualType: 'dwb',
+        springMode: 'derived',
+        upperFront: [0.39022, 0.08701, 0.04129],
+        upperRear: [0.42022, 0.09469, -0.24111],
+        lowerFront: [0.44100, -0.07010, 0.22113],
+        lowerRear: [0.44042, -0.08989, -0.10935],
+        tyreTop: [0.1100, 0.1122, 0],
+        tyreBottom: [0.0913, -0.10511, -0.0100],
+        steerCar: [0.3899, -0.04540, 0.1602],
+        steerTyre: [0.0913, -0.05342, 0.14988],
+        strutCar: null,
+        strutTyre: null
+      },
       sourcePath: 'assettocorsa/content/cars/ks_mazda_mx5_nd',
       sourceFile: 'data.acd'
     },
@@ -237,8 +297,38 @@
       driveType: 'RWD',
       brakeSource: 'brakes.ini [DATA] FRONT_SHARE = 0.75',
       driveSource: 'drivetrain.ini [TRACTION] TYPE=RWD',
-      frontSuspension: { type: 'DWB', name: '双叉臂' },
-      rearSuspension: { type: 'DWB', name: '双叉臂' },
+      frontSuspension: {
+        type: 'DWB',
+        name: '双叉臂',
+        visualType: 'dwb',
+        springMode: 'derived',
+        upperFront: [0.38302, 0.12311, 0.1348],
+        upperRear: [0.38302, 0.12451, -0.1669],
+        lowerFront: [0.4552, -0.0696, -0.0333],
+        lowerRear: [0.4259, -0.08110, -0.39616],
+        tyreTop: [0.15479, 0.10951, -0.0321],
+        tyreBottom: [0.1005, -0.10102, -0.0025],
+        steerCar: [0.4552, -0.0296, 0.0589],
+        steerTyre: [0.0948, -0.06012, 0.11691],
+        strutCar: null,
+        strutTyre: null
+      },
+      rearSuspension: {
+        type: 'DWB',
+        name: '双叉臂',
+        visualType: 'dwb',
+        springMode: 'derived',
+        upperFront: [0.39022, 0.08701, 0.04129],
+        upperRear: [0.42022, 0.09469, -0.24111],
+        lowerFront: [0.44100, -0.07010, 0.22113],
+        lowerRear: [0.44042, -0.08989, -0.10935],
+        tyreTop: [0.1100, 0.1122, 0],
+        tyreBottom: [0.0913, -0.10511, -0.0100],
+        steerCar: [0.3899, -0.03840, 0.1602],
+        steerTyre: [0.0913, -0.05342, 0.14988],
+        strutCar: null,
+        strutTyre: null
+      },
       sourcePath: 'assettocorsa/content/cars/ks_mazda_mx5_cup',
       sourceFile: 'data.acd'
     },
@@ -267,8 +357,38 @@
       driveType: 'AWD',
       brakeSource: 'brakes.ini [DATA] FRONT_SHARE = 0.78',
       driveSource: 'drivetrain.ini [TRACTION] TYPE=AWD',
-      frontSuspension: { type: 'STRUT', name: '麦弗逊支柱' },
-      rearSuspension: { type: 'STRUT', name: '麦弗逊支柱' },
+      frontSuspension: {
+        type: 'STRUT',
+        name: '麦弗逊支柱',
+        visualType: 'strut',
+        springMode: 'strut',
+        lowerFront: [0.396, -0.100, 0.040],
+        lowerRear: [0.366, -0.100, -0.314],
+        upperFront: null,
+        upperRear: null,
+        tyreTop: null,
+        tyreBottom: [0.057, -0.132, 0.013],
+        steerCar: [0.420, -0.046, 0.104],
+        steerTyre: [0.049, -0.069, 0.124],
+        strutCar: [0.222, 0.497, -0.021],
+        strutTyre: [0.057, -0.132, 0.013]
+      },
+      rearSuspension: {
+        type: 'STRUT',
+        name: '多连杆',
+        visualType: 'multilink',
+        springMode: 'strut',
+        lowerFront: [0.172, -0.050, 0.514],
+        lowerRear: [0.515, -0.045, 0.072],
+        upperFront: null,
+        upperRear: null,
+        tyreTop: null,
+        tyreBottom: [0.108, -0.080, 0.072],
+        steerCar: [0.515, -0.045, -0.120],
+        steerTyre: [0.108, -0.080, -0.120],
+        strutCar: [0.222, 0.510, 0],
+        strutTyre: [0.108, -0.080, 0]
+      },
       sourcePath: 'assettocorsa/content/cars/ddm_subaru_22b',
       sourceFile: 'data.acd'
     }
@@ -333,6 +453,65 @@
 
   var NEUTRAL_BAND_PP = 0.35;
   var REFERENCE_SPEED_KMH = 100;
+
+  // A sustained longitudinal demand is required before an axle-limit condition
+  // is labelled as a power / braking state rather than a generic axle limit.
+  var VEHICLE_STATE_LONG_THRESHOLD_G = 0.10;
+  var VEHICLE_STATES = Object.freeze({
+    powerOver: Object.freeze({
+      code: 'power-over',
+      label: '动力甩尾',
+      labelEn: 'POWER OVERSTEER',
+      direction: 'accel',
+      axle: 'rear'
+    }),
+    powerUnder: Object.freeze({
+      code: 'power-under',
+      label: '动力推头',
+      labelEn: 'POWER UNDER',
+      direction: 'accel',
+      axle: 'front'
+    }),
+    frontLock: Object.freeze({
+      code: 'front-lock',
+      label: '前轮抱死',
+      labelEn: 'FRONT LOCK',
+      direction: 'brake',
+      axle: 'front'
+    }),
+    rearLock: Object.freeze({
+      code: 'rear-lock',
+      label: '后轮抱死',
+      labelEn: 'REAR LOCK',
+      direction: 'brake',
+      axle: 'rear'
+    }),
+    lossOfControl: Object.freeze({
+      code: 'loss-of-control',
+      label: '失控',
+      labelEn: 'LOSS OF CONTROL',
+      direction: 'both',
+      axle: 'both'
+    })
+  });
+
+  function classifyVehicleState(frontUtil, rearUtil, longitudinalG) {
+    var frontOver = frontUtil >= 1;
+    var rearOver = rearUtil >= 1;
+    if (!frontOver && !rearOver) {
+      return null;
+    }
+    if (frontOver && rearOver) {
+      return VEHICLE_STATES.lossOfControl;
+    }
+    if (longitudinalG > VEHICLE_STATE_LONG_THRESHOLD_G) {
+      return rearOver ? VEHICLE_STATES.powerOver : VEHICLE_STATES.powerUnder;
+    }
+    if (longitudinalG < -VEHICLE_STATE_LONG_THRESHOLD_G) {
+      return frontOver ? VEHICLE_STATES.frontLock : VEHICLE_STATES.rearLock;
+    }
+    return null;
+  }
 
   function clamp(value, min, max) {
     return Math.min(max, Math.max(min, value));
@@ -483,6 +662,8 @@
     var frontMargin = frontGrip - frontDemand;
     var rearMargin = rearGrip - rearDemand;
     var totalMargin = totalGrip - totalDemand;
+
+    var vehicleState = classifyVehicleState(frontUtil, rearUtil, s.longitudinalG);
 
     var frontWheelLift = frontInnerLoadRaw <= 1e-6;
     var rearWheelLift = rearInnerLoadRaw <= 1e-6;
@@ -669,6 +850,7 @@
       },
       limitExceeded: totalDemand > totalGrip,
       axleLimitReached: frontUtil >= 1 || rearUtil >= 1,
+      vehicleState: vehicleState,
       warnings,
       referenceSpeedKmh: REFERENCE_SPEED_KMH,
       cornerRadiusM,
@@ -736,6 +918,9 @@
     LIMITS: LIMITS,
     DRIVE_MODES: DRIVE_MODES,
     NEUTRAL_BAND_PP: NEUTRAL_BAND_PP,
+    VEHICLE_STATES: VEHICLE_STATES,
+    VEHICLE_STATE_LONG_THRESHOLD_G: VEHICLE_STATE_LONG_THRESHOLD_G,
+    classifyVehicleState: classifyVehicleState,
     getCarProfile: getCarProfile,
     createBaseState: createBaseState,
     cloneBaseState: cloneBaseState,

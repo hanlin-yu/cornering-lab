@@ -118,7 +118,7 @@
     var points = [];
     var segments = 210;
     var coils = 7;
-    var radius = 0.058;
+    var radius = 0.048;
     for (var i = 0; i <= segments; i += 1) {
       var t = i / segments;
       var angle = t * Math.PI * 2 * coils;
@@ -236,6 +236,10 @@
     this.hubs = {};
     this.links = [];
     this.springs = [];
+    this.wheelAnchorRecords = [];
+    this.currentCarProfile = null;
+    this.suspensionGroup = null;
+    this.hardpointGroup = null;
     this.wheelLabels = Array.prototype.slice.call(container.querySelectorAll('[data-wheel-label]'));
     this.cogLabel = container.querySelector('[data-cog-label]');
     this.gLabel = container.querySelector('[data-g-label]');
@@ -249,7 +253,6 @@
     this.buildGround();
     this.buildChassis();
     this.buildWheels();
-    this.buildSuspension();
     this.buildArb();
     this.buildCogAndG();
     this.bindControls();
@@ -351,23 +354,6 @@
     placeRod(mesh, localA, localB);
     this.body.add(mesh);
     return mesh;
-  };
-
-  CorneringChassisScene.prototype.addHardpoint = function (name, x, y, z, showJoint) {
-    var anchor = new THREE.Object3D();
-    anchor.position.set(x, y - DIM.rollCenterY, z);
-    this.body.add(anchor);
-    this.hardpoints[name] = anchor;
-
-    if (showJoint !== false) {
-      var joint = new THREE.Mesh(
-        new THREE.SphereGeometry(0.022, 12, 8),
-        this.jointMaterial
-      );
-      joint.position.copy(anchor.position);
-      this.body.add(joint);
-    }
-    return anchor;
   };
 
   CorneringChassisScene.prototype.buildChassis = function () {
@@ -520,32 +506,6 @@
       rearPlate.position.set(side * 0.50, 0.82 - DIM.rollCenterY, this.rearAxleZ + 0.03);
       this.body.add(rearPlate);
     }, this);
-
-    this.buildHardpoints();
-  };
-
-  CorneringChassisScene.prototype.buildHardpoints = function () {
-    var frontZ = this.frontAxleZ;
-    var rearZ = this.rearAxleZ;
-
-    [-1, 1].forEach(function (side) {
-      var tag = side < 0 ? 'L' : 'R';
-
-      this.addHardpoint('F' + tag + '.lcaFront', side * 0.34, 0.225, frontZ + 0.16);
-      this.addHardpoint('F' + tag + '.lcaRear', side * 0.365, 0.225, frontZ - 0.17);
-      this.addHardpoint('F' + tag + '.strutTop', side * 0.50, 0.84, frontZ + 0.03);
-      this.addHardpoint('F' + tag + '.rack', side * 0.23, 0.305, frontZ - 0.38);
-
-      this.addHardpoint('R' + tag + '.lcaFront', side * 0.325, 0.215, rearZ + 0.18);
-      this.addHardpoint('R' + tag + '.lcaRear', side * 0.355, 0.215, rearZ - 0.18);
-      this.addHardpoint('R' + tag + '.ucaFront', side * 0.325, 0.485, rearZ + 0.15);
-      this.addHardpoint('R' + tag + '.ucaRear', side * 0.355, 0.485, rearZ - 0.16);
-      this.addHardpoint('R' + tag + '.springTop', side * 0.45, 0.81, rearZ + 0.04);
-      this.addHardpoint('R' + tag + '.toeInner', side * 0.29, 0.315, rearZ + 0.23);
-    }, this);
-
-    // Steering rack.
-    this.addChassisTube([-0.24, 0.305, frontZ - 0.38], [0.24, 0.305, frontZ - 0.38], 0.019, this.ringMaterial);
   };
 
   CorneringChassisScene.prototype.buildWheels = function () {
@@ -717,80 +677,182 @@
     });
   };
 
-  CorneringChassisScene.prototype.addHubAnchor = function (wheelId, name, x, y, z) {
+  CorneringChassisScene.prototype.worldToBodyLocal = function (x, y, z) {
+    var scaleX = this.body.scale.x || 1;
+    var scaleZ = this.body.scale.z || 1;
+    return new THREE.Vector3(
+      x / scaleX,
+      y - DIM.rollCenterY,
+      z / scaleZ
+    );
+  };
+
+  CorneringChassisScene.prototype.addHubAnchor = function (wheelId, name, x, y, z, showJoint) {
     var wheel = this.corners[wheelId];
     var anchor = new THREE.Object3D();
     anchor.position.set(x, y, z);
     wheel.root.add(anchor);
     this.hubs[wheelId + '.' + name] = anchor;
 
-    var joint = new THREE.Mesh(
-      new THREE.SphereGeometry(0.024, 12, 8),
-      this.jointMaterial
-    );
-    joint.position.copy(anchor.position);
-    wheel.root.add(joint);
-    anchor.userData.joint = joint;
+    var joint = null;
+    if (showJoint !== false) {
+      joint = new THREE.Mesh(
+        new THREE.SphereGeometry(0.024, 12, 8),
+        this.jointMaterial
+      );
+      joint.position.copy(anchor.position);
+      wheel.root.add(joint);
+      anchor.userData.joint = joint;
+    }
+    this.wheelAnchorRecords.push({ anchor: anchor, joint: joint });
     return anchor;
   };
 
   CorneringChassisScene.prototype.addDynamicLink = function (a, b, radius, material) {
     var mesh = createRod(radius, material, 8);
-    this.scene.add(mesh);
+    this.suspensionGroup.add(mesh);
     this.links.push({ mesh: mesh, a: a, b: b });
     return mesh;
   };
 
-  CorneringChassisScene.prototype.buildSuspension = function () {
-    var springGeometry = createHelixGeometry();
-    this.springGeometry = springGeometry;
-
-    this.seatMaterialMesh = new THREE.MeshStandardMaterial({
-      color: 0x68777d,
-      roughness: 0.29,
-      metalness: 0.9,
-      envMapIntensity: 0.9
-    });
-
-    var wheelIds = ['FL', 'FR', 'RL', 'RR'];
+  CorneringChassisScene.prototype.clearCarSuspension = function () {
     var self = this;
 
-    wheelIds.forEach(function (wheelId) {
-      var wheel = self.corners[wheelId];
-      var side = wheel.side;
-      var tag = side < 0 ? 'L' : 'R';
-      var isFront = wheel.axle === 'front';
+    if (this.suspensionGroup) {
+      this.scene.remove(this.suspensionGroup);
+      this.suspensionGroup.traverse(function (object) {
+        if (object.geometry && object.geometry !== self.springGeometry) {
+          object.geometry.dispose();
+        }
+      });
+      this.suspensionGroup = null;
+    }
 
-      var hubLower = self.addHubAnchor(wheelId, 'lower', -side * 0.125, -0.005, 0);
-      var hubUpper = self.addHubAnchor(wheelId, 'upper', -side * 0.10, 0.14, 0);
-      var hubSteer = self.addHubAnchor(wheelId, 'steer', -side * 0.085, 0.02, isFront ? -0.10 : 0.11);
-      var springLower = self.addHubAnchor(wheelId, 'springLower', -side * (isFront ? 0.075 : 0.16), isFront ? 0.045 : 0.005, isFront ? 0.015 : 0.025);
+    if (this.hardpointGroup) {
+      this.body.remove(this.hardpointGroup);
+      this.hardpointGroup.traverse(function (object) {
+        if (object.geometry) {
+          object.geometry.dispose();
+        }
+      });
+      this.hardpointGroup = null;
+    }
 
-      if (isFront) {
-        self.addDynamicLink(self.hardpoints['F' + tag + '.lcaFront'], hubLower, 0.0135, self.armMaterial);
-        self.addDynamicLink(self.hardpoints['F' + tag + '.lcaRear'], hubLower, 0.0135, self.armMaterial);
-        self.addDynamicLink(self.hardpoints['F' + tag + '.rack'], hubSteer, 0.009, self.ringMaterial);
-        self.addDynamicLink(hubLower, self.hardpoints['F' + tag + '.strutTop'], 0.015, self.damperMaterial);
+    this.wheelAnchorRecords.forEach(function (record) {
+      if (record.joint) {
+        if (record.joint.parent) {
+          record.joint.parent.remove(record.joint);
+        }
+        record.joint.geometry.dispose();
+      }
+      if (record.anchor.parent) {
+        record.anchor.parent.remove(record.anchor);
+      }
+    });
+    this.wheelAnchorRecords = [];
+    this.hubs = {};
+    this.hardpoints = {};
+    this.links = [];
+    this.springs = [];
+  };
+
+  CorneringChassisScene.prototype.setCar = function (profile) {
+    if (!profile || !profile.frontSuspension || !profile.rearSuspension) {
+      return;
+    }
+    this.currentCarProfile = profile;
+    this.setVehicleDimensions(profile);
+    this.clearCarSuspension();
+    this.buildCarSuspension(profile);
+  };
+
+  CorneringChassisScene.prototype.buildCarSuspension = function (profile) {
+    var self = this;
+    var wheelRadius = DIM.wheelRadius;
+
+    this.hardpoints = {};
+
+    var springGeometry = this.springGeometry || createHelixGeometry();
+    this.springGeometry = springGeometry;
+    if (!this.seatMaterialMesh) {
+      this.seatMaterialMesh = new THREE.MeshStandardMaterial({
+        color: 0x68777d,
+        roughness: 0.29,
+        metalness: 0.9,
+        envMapIntensity: 0.9
+      });
+    }
+
+    this.suspensionGroup = new THREE.Group();
+    this.suspensionGroup.name = 'suspension-links';
+    this.scene.add(this.suspensionGroup);
+
+    this.hardpointGroup = new THREE.Group();
+    this.hardpointGroup.name = 'ac-hardpoints';
+    this.body.add(this.hardpointGroup);
+
+    function addChassisAnchor(name, rawPoint, side, trackHalf, axleZ) {
+      if (!rawPoint) {
+        return null;
+      }
+      var worldX = side * (trackHalf - rawPoint[0]);
+      var worldY = wheelRadius + rawPoint[1];
+      var worldZ = axleZ + rawPoint[2];
+      var local = self.worldToBodyLocal(worldX, worldY, worldZ);
+      var anchor = new THREE.Object3D();
+      anchor.position.copy(local);
+      self.hardpointGroup.add(anchor);
+
+      var joint = new THREE.Mesh(
+        new THREE.SphereGeometry(0.023, 12, 8),
+        self.jointMaterial
+      );
+      joint.position.copy(local);
+      self.hardpointGroup.add(joint);
+
+      self.hardpoints[name] = anchor;
+      return anchor;
+    }
+
+    function buildSpring(wheelId, side, axle, suspension, chassisTop) {
+      var isStrut = suspension.springMode === 'strut';
+      var springLower;
+      if (isStrut) {
+        springLower = self.hubs[wheelId + '.strut'];
+        if (!springLower) {
+          springLower = self.addHubAnchor(
+            wheelId,
+            'springLower',
+            -side * suspension.strutTyre[0],
+            suspension.strutTyre[1],
+            suspension.strutTyre[2]
+          );
+        }
       } else {
-        self.addDynamicLink(self.hardpoints['R' + tag + '.lcaFront'], hubLower, 0.0135, self.armMaterial);
-        self.addDynamicLink(self.hardpoints['R' + tag + '.lcaRear'], hubLower, 0.0135, self.armMaterial);
-        self.addDynamicLink(self.hardpoints['R' + tag + '.ucaFront'], hubUpper, 0.0125, self.armMaterial);
-        self.addDynamicLink(self.hardpoints['R' + tag + '.ucaRear'], hubUpper, 0.0125, self.armMaterial);
-        self.addDynamicLink(self.hardpoints['R' + tag + '.toeInner'], hubSteer, 0.0085, self.ringMaterial);
+        var lower = suspension.tyreBottom;
+        // Keep the derived coilover inboard of the tyre's inner face.
+        springLower = self.addHubAnchor(
+          wheelId,
+          'springLower',
+          -side * (lower[0] + 0.09),
+          lower[1] + 0.045,
+          lower[2]
+        );
       }
 
-      var springTop = isFront
-        ? self.hardpoints['F' + tag + '.strutTop']
-        : self.hardpoints['R' + tag + '.springTop'];
+      var springTop = chassisTop;
+      if (!springTop) {
+        return;
+      }
 
       var springMesh = new THREE.Mesh(springGeometry, self.springMaterial);
       springMesh.frustumCulled = false;
-      self.scene.add(springMesh);
+      self.suspensionGroup.add(springMesh);
 
-      var seatTop = createCylinderDisc(0.081, 0.012, self.seatMaterialMesh, 20);
-      var seatBottom = createCylinderDisc(0.081, 0.012, self.seatMaterialMesh, 20);
-      self.scene.add(seatTop);
-      self.scene.add(seatBottom);
+      var seatTop = createCylinderDisc(0.060, 0.012, self.seatMaterialMesh, 20);
+      var seatBottom = createCylinderDisc(0.060, 0.012, self.seatMaterialMesh, 20);
+      self.suspensionGroup.add(seatTop);
+      self.suspensionGroup.add(seatBottom);
 
       self.springs.push({
         lower: springLower,
@@ -798,6 +860,188 @@
         mesh: springMesh,
         seatTop: seatTop,
         seatBottom: seatBottom
+      });
+
+      // DWB / multilink coilover gets an explicit damper rod along its derived
+      // axis. Strut cars already show their exact STRUT_CAR/STRUT_TYRE axis as
+      // a damper link below.
+      if (!isStrut) {
+        self.addDynamicLink(springLower, springTop, 0.0135, self.damperMaterial);
+      }
+    }
+
+    var axles = [
+      {
+        id: 'front',
+        tag: 'F',
+        axleZ: this.frontAxleZ,
+        track: profile.trackFrontM,
+        suspension: profile.frontSuspension
+      },
+      {
+        id: 'rear',
+        tag: 'R',
+        axleZ: this.rearAxleZ,
+        track: profile.trackRearM,
+        suspension: profile.rearSuspension
+      }
+    ];
+
+    axles.forEach(function (axle) {
+      var suspension = axle.suspension;
+      var trackHalf = axle.track / 2;
+      var leftAnchor = null;
+      var rightAnchor = null;
+
+      [-1, 1].forEach(function (side) {
+        var tag = side < 0 ? 'L' : 'R';
+        var wheelId = axle.tag + tag;
+        var chassis = {};
+
+        chassis.lowerFront = addChassisAnchor(
+          axle.tag + tag + '.lowerFront',
+          suspension.lowerFront, side, trackHalf, axle.axleZ
+        );
+        chassis.lowerRear = addChassisAnchor(
+          axle.tag + tag + '.lowerRear',
+          suspension.lowerRear, side, trackHalf, axle.axleZ
+        );
+        chassis.upperFront = addChassisAnchor(
+          axle.tag + tag + '.upperFront',
+          suspension.upperFront, side, trackHalf, axle.axleZ
+        );
+        chassis.upperRear = addChassisAnchor(
+          axle.tag + tag + '.upperRear',
+          suspension.upperRear, side, trackHalf, axle.axleZ
+        );
+        chassis.steer = addChassisAnchor(
+          axle.tag + tag + '.steer',
+          suspension.steerCar, side, trackHalf, axle.axleZ
+        );
+        chassis.strut = addChassisAnchor(
+          axle.tag + tag + '.strutTop',
+          suspension.strutCar, side, trackHalf, axle.axleZ
+        );
+        if (side < 0) {
+          leftAnchor = chassis.steer;
+        } else {
+          rightAnchor = chassis.steer;
+        }
+
+        var tyreBottom = suspension.tyreBottom;
+        var hubLower = self.addHubAnchor(
+          wheelId,
+          'lower',
+          -side * tyreBottom[0],
+          tyreBottom[1],
+          tyreBottom[2]
+        );
+
+        var hubUpper = null;
+        if (suspension.tyreTop && suspension.upperFront && suspension.upperRear) {
+          hubUpper = self.addHubAnchor(
+            wheelId,
+            'upper',
+            -side * suspension.tyreTop[0],
+            suspension.tyreTop[1],
+            suspension.tyreTop[2]
+          );
+        }
+
+        var hubSteer = self.addHubAnchor(
+          wheelId,
+          'steer',
+          -side * suspension.steerTyre[0],
+          suspension.steerTyre[1],
+          suspension.steerTyre[2]
+        );
+
+        var hubStrut = null;
+        if (suspension.strutTyre) {
+          var strut = suspension.strutTyre;
+          hubStrut = self.addHubAnchor(
+            wheelId,
+            'strut',
+            -side * strut[0],
+            strut[1],
+            strut[2]
+          );
+        }
+
+        if (chassis.lowerFront) {
+          self.addDynamicLink(chassis.lowerFront, hubLower, 0.0135, self.armMaterial);
+        }
+        if (chassis.lowerRear) {
+          self.addDynamicLink(chassis.lowerRear, hubLower, 0.0135, self.armMaterial);
+        }
+        if (hubUpper && chassis.upperFront) {
+          self.addDynamicLink(chassis.upperFront, hubUpper, 0.0125, self.armMaterial);
+        }
+        if (hubUpper && chassis.upperRear) {
+          self.addDynamicLink(chassis.upperRear, hubUpper, 0.0125, self.armMaterial);
+        }
+        if (chassis.steer) {
+          self.addDynamicLink(chassis.steer, hubSteer, 0.0085, self.ringMaterial);
+        }
+        if (chassis.strut && hubStrut) {
+          self.addDynamicLink(hubStrut, chassis.strut, 0.015, self.damperMaterial);
+        }
+
+        var chassisTop = null;
+        if (suspension.springMode === 'strut') {
+          chassisTop = chassis.strut;
+        } else if (suspension.upperFront && suspension.upperRear) {
+          var upperX = (suspension.upperFront[0] + suspension.upperRear[0]) / 2;
+          var upperY = (suspension.upperFront[1] + suspension.upperRear[1]) / 2;
+          var upperZ = (suspension.upperFront[2] + suspension.upperRear[2]) / 2;
+          // AC does not publish DWB/all-multilink damper mounts. Put the top
+          // mount between the upper-arm inner pivot and the upper ball joint,
+          // above the arm, and disclose the derivation in the source panel.
+          var topInboardX = upperX * 0.55 +
+            (suspension.tyreTop ? suspension.tyreTop[0] : upperX) * 0.45;
+          var topWorldX = side * (trackHalf - topInboardX);
+          // No AC damper mount exists for DWB. Use a body-side tower height
+          // above the wheel centre, with x/z tied to the upper-arm geometry.
+          var topWorldY = wheelRadius + 0.52;
+          var topWorldZ = axle.axleZ + upperZ;
+          var topLocal = self.worldToBodyLocal(topWorldX, topWorldY, topWorldZ);
+          var springTop = new THREE.Object3D();
+          springTop.position.copy(topLocal);
+          self.hardpointGroup.add(springTop);
+          var topJoint = new THREE.Mesh(
+            new THREE.SphereGeometry(0.019, 10, 8),
+            self.jointMaterial
+          );
+          topJoint.position.copy(topLocal);
+          self.hardpointGroup.add(topJoint);
+          chassisTop = springTop;
+          self.hardpoints[axle.tag + tag + '.springTop'] = springTop;
+        }
+
+        buildSpring(wheelId, side, axle, suspension, chassisTop);
+      });
+
+      // Tie-rod / steering rack tube between the two inner steering points.
+      if (leftAnchor && rightAnchor) {
+        var localA = leftAnchor.position.clone();
+        var localB = rightAnchor.position.clone();
+        var rack = createRod(0.017, self.ringMaterial, 8);
+        placeRod(rack, localA, localB);
+        self.hardpointGroup.add(rack);
+      }
+    });
+
+    // ARB drop links now attach to the rebuilt wheel-side lower arm joints.
+    ['front', 'rear'].forEach(function (axleId) {
+      var prefix = axleId === 'front' ? 'F' : 'R';
+      [-1, 1].forEach(function (side) {
+        var tag = side < 0 ? 'L' : 'R';
+        var arm = self.arbArms[axleId][tag];
+        var hubLower = self.hubs[prefix + tag + '.lower'];
+        if (!arm || !hubLower) {
+          return;
+        }
+        self.addDynamicLink(arm.tip, hubLower, 0.008, self.arbMaterial);
       });
     });
   };
@@ -849,12 +1093,6 @@
         var tip = new THREE.Object3D();
         tip.position.copy(armDir);
         pivot.add(tip);
-
-        var wheelId = (axle.id === 'front' ? 'F' : 'R') + tag;
-        var hubLower = self.hubs[wheelId + '.lower'];
-        var dropLink = createRod(0.008, self.arbMaterial, 8);
-        self.scene.add(dropLink);
-        self.links.push({ mesh: dropLink, a: tip, b: hubLower });
 
         self.arbArms[axle.id][tag] = {
           pivot: pivot,

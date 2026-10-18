@@ -37,11 +37,43 @@
   var G_PLAY_DURATION_MS = 6200;
   var G_REGION_STEP = 0.1;
   var G_REGION_INTERVAL_MS = 1000;
-  var G_REGION_COLORS = {
-    understeer: 'rgba(89, 217, 211, 0.24)',
-    oversteer: 'rgba(242, 178, 94, 0.26)',
-    limit: 'rgba(255, 99, 103, 0.055)'
+  var G_DELTA_SCALE_PP = 25;
+  var G_STATE_ORDER = [
+    'loss-of-control',
+    'power-over',
+    'power-under',
+    'front-lock',
+    'rear-lock'
+  ];
+  var G_STATE_INDEX = {};
+  G_STATE_ORDER.forEach(function (code, index) {
+    G_STATE_INDEX[code] = index + 1;
+  });
+  var G_STATE_COLORS = {
+    'power-over': [255, 122, 47],
+    'power-under': [53, 213, 223],
+    'front-lock': [255, 209, 102],
+    'rear-lock': [255, 79, 123],
+    'loss-of-control': [183, 140, 255]
   };
+  var G_STATE_DESCRIPTIONS = {
+    'power-over': '加速时后轴先达到 100% 联合利用率',
+    'power-under': '加速时前轴先达到 100% 联合利用率',
+    'front-lock': '减速时前轴先达到 100% 联合利用率',
+    'rear-lock': '减速时后轴先达到 100% 联合利用率',
+    'loss-of-control': '前后轴同时达到 100% 联合利用率'
+  };
+  var G_STATE_LABELS = {};
+  if (model.VEHICLE_STATES) {
+    Object.keys(model.VEHICLE_STATES).forEach(function (key) {
+      var vehicleState = model.VEHICLE_STATES[key];
+      G_STATE_LABELS[vehicleState.code] = vehicleState.label;
+    });
+  }
+  var gHeatColorLut = null;
+  var gRegionSampleCanvas = null;
+  var gRegionSampleContext = null;
+  var gRegionSampleImage = null;
   var gRegionsDirty = true;
   var gRegionTimer = null;
 
@@ -409,8 +441,17 @@
         Math.round(state.tireVerticalRateNm).toLocaleString('en-US') + ' N/m',
         '垂向刚度仅用于 3D 轮胎压缩视觉'],
       ['悬挂形式',
-        '前 ' + profile.frontSuspension.type + ' / 后 ' + profile.rearSuspension.type,
-        '3D 为通用简化示意，按轴距 / 轮距缩放']
+        '前 ' + profile.frontSuspension.type + ' · ' + profile.frontSuspension.name +
+        ' / 后 ' + profile.rearSuspension.type + ' · ' + profile.rearSuspension.name,
+        '3D 硬点来自 suspensions.ini；前弹簧 ' +
+        (profile.frontSuspension.springMode === 'strut' ? '沿 STRUT 轴' : 'DWB 轴推导') +
+        '，后弹簧 ' +
+        (profile.rearSuspension.springMode === 'strut' ? '沿 STRUT 轴' : 'DWB 轴推导') +
+        (profile.id === 'subaru_22b' ? '；22B 后悬 AC 原始 TYPE=STRUT' : '') +
+        (profile.frontSuspension.springMode === 'derived' ||
+          profile.rearSuspension.springMode === 'derived'
+          ? '（AC 未给出减振器上安装点）'
+          : '')]
     ].forEach(function (row) {
       var item = document.createElement('div');
       var term = document.createElement('dt');
@@ -462,8 +503,8 @@
     populateTyreOptions();
     updateCarUi();
 
-    if (scene && typeof scene.setVehicleDimensions === 'function') {
-      scene.setVehicleDimensions(profile);
+    if (scene && typeof scene.setCar === 'function') {
+      scene.setCar(profile);
     }
 
     markGRegionsDirty();
@@ -511,9 +552,11 @@
   }
 
   function gPadY(longitudinalG) {
+    // Vertical orientation: brake (-longitudinal) points up; acceleration
+    // (+longitudinal) points down.
     var plotHeight = G_PAD.bottom - G_PAD.top;
     var fraction = (longitudinalG - G_PAD.gMin) / (G_PAD.gMax - G_PAD.gMin);
-    return G_PAD.bottom - fraction * plotHeight;
+    return G_PAD.top + fraction * plotHeight;
   }
 
   function gPadPath(points) {
@@ -633,7 +676,7 @@
       y: G_PAD.top - 4,
       'text-anchor': 'start',
       class: 'g-pad-axis-title'
-    }, 'LONG G ↑'));
+    }, 'LONG G · ↑ BRAKE / ↓ ACCEL'));
     axes.appendChild(createSvgElement('text', {
       x: G_PAD.left,
       y: G_PAD.height - 3,
@@ -660,6 +703,57 @@
     guide.setAttribute('d', gPadPath(guidePoints));
   }
 
+  function sampleColorStops(stops, u) {
+    var clamped = clamp(u, 0, 1);
+    for (var i = 1; i < stops.length; i += 1) {
+      if (clamped <= stops[i][0]) {
+        var low = stops[i - 1];
+        var high = stops[i];
+        var span = high[0] - low[0];
+        var fraction = span > 0 ? (clamped - low[0]) / span : 0;
+        return [
+          low[1][0] + (high[1][0] - low[1][0]) * fraction,
+          low[1][1] + (high[1][1] - low[1][1]) * fraction,
+          low[1][2] + (high[1][2] - low[1][2]) * fraction
+        ];
+      }
+    }
+    return stops[stops.length - 1][1];
+  }
+
+  function buildHeatColorLut() {
+    var iceStops = [
+      [0.00, [3, 6, 8]],
+      [0.20, [4, 22, 28]],
+      [0.45, [8, 70, 80]],
+      [0.70, [30, 140, 152]],
+      [0.90, [80, 205, 215]],
+      [1.00, [150, 245, 250]]
+    ];
+    var fireStops = [
+      [0.00, [5, 4, 4]],
+      [0.20, [28, 8, 6]],
+      [0.45, [95, 26, 10]],
+      [0.70, [180, 65, 18]],
+      [0.90, [240, 120, 35]],
+      [1.00, [255, 175, 70]]
+    ];
+    var lut = new Uint8ClampedArray(256 * 4);
+
+    for (var i = 0; i < 256; i += 1) {
+      var t = (i / 255) * 2 - 1;
+      var color = sampleColorStops(
+        t >= 0 ? iceStops : fireStops,
+        Math.pow(Math.abs(t), 0.88)
+      );
+      lut[i * 4] = Math.round(color[0]);
+      lut[i * 4 + 1] = Math.round(color[1]);
+      lut[i * 4 + 2] = Math.round(color[2]);
+      lut[i * 4 + 3] = 255;
+    }
+    return lut;
+  }
+
   function buildGRegions() {
     var canvas = $('gPadRegionCanvas');
     if (!canvas) {
@@ -668,6 +762,20 @@
     var pixelRatio = 2;
     canvas.width = G_PAD.width * pixelRatio;
     canvas.height = G_PAD.height * pixelRatio;
+
+    var plotWidth = G_PAD.width - G_PAD.left - G_PAD.right;
+    var plotHeight = G_PAD.bottom - G_PAD.top;
+    gRegionSampleCanvas = document.createElement('canvas');
+    gRegionSampleCanvas.width = plotWidth;
+    gRegionSampleCanvas.height = plotHeight;
+    gRegionSampleContext = gRegionSampleCanvas.getContext('2d');
+    if (gRegionSampleContext) {
+      gRegionSampleImage = gRegionSampleContext.createImageData(
+        plotWidth,
+        plotHeight
+      );
+    }
+    gHeatColorLut = buildHeatColorLut();
   }
 
   function markGRegionsDirty() {
@@ -679,52 +787,327 @@
     if (!canvas) {
       return;
     }
+    if (!gHeatColorLut || !gRegionSampleCanvas || !gRegionSampleImage) {
+      buildGRegions();
+    }
+    if (!gHeatColorLut || !gRegionSampleCanvas || !gRegionSampleImage) {
+      return;
+    }
+
     var context = canvas.getContext('2d');
-    if (!context) {
+    var imageContext = gRegionSampleContext;
+    if (!context || !imageContext) {
       return;
     }
 
     gRegionsDirty = false;
+
+    var count = Math.round((G_PAD.gMax - G_PAD.gMin) / G_REGION_STEP);
+    var side = count + 1;
+    var nodeValues = new Float32Array(side * side);
+    var nodeLimits = new Uint8Array(side * side);
+    var nodeFrontUtil = new Float32Array(side * side);
+    var nodeRearUtil = new Float32Array(side * side);
+    var nodeStateIndex = new Uint8Array(side * side);
+
+    for (var row = 0; row <= count; row += 1) {
+      var long = G_PAD.gMin + row * G_REGION_STEP;
+      for (var column = 0; column <= count; column += 1) {
+        var lat = G_PAD.gMin + column * G_REGION_STEP;
+        var result = model.calculate(Object.assign({}, state, {
+          lateralG: lat,
+          longitudinalG: long
+        }));
+        var delta = result.deltaPP;
+        var nodeIndex = row * side + column;
+        nodeValues[nodeIndex] = Number.isFinite(delta)
+          ? Math.max(-100000, Math.min(100000, delta))
+          : 0;
+        nodeLimits[nodeIndex] =
+          result.limitExceeded || result.axleLimitReached || result.wheelLift.any
+            ? 1
+            : 0;
+        nodeFrontUtil[nodeIndex] = Number.isFinite(result.utilisation.front)
+          ? Math.min(4, Math.max(0, result.utilisation.front))
+          : 4;
+        nodeRearUtil[nodeIndex] = Number.isFinite(result.utilisation.rear)
+          ? Math.min(4, Math.max(0, result.utilisation.rear))
+          : 4;
+        nodeStateIndex[nodeIndex] = result.vehicleState
+          ? (G_STATE_INDEX[result.vehicleState.code] || 0)
+          : 0;
+      }
+    }
+
+    var imageWidth = gRegionSampleCanvas.width;
+    var imageHeight = gRegionSampleCanvas.height;
+    var pixels = gRegionSampleImage.data;
+    var dataIndex = 0;
+    var range = G_PAD.gMax - G_PAD.gMin;
+    var pixelStates = new Uint8Array(imageWidth * imageHeight);
+
+    for (var py = 0; py < imageHeight; py += 1) {
+      // Row 0 is the top of the plot: maximum braking (-G long).
+      var longValue = G_PAD.gMin + (py / (imageHeight - 1)) * range;
+      var fy = (longValue - G_PAD.gMin) / G_REGION_STEP;
+      var y0 = Math.min(count, Math.floor(fy));
+      var y1 = Math.min(count, y0 + 1);
+      var ty = fy - y0;
+
+      for (var px = 0; px < imageWidth; px += 1) {
+        var latValue = G_PAD.gMin + (px / (imageWidth - 1)) * range;
+        var fx = (latValue - G_PAD.gMin) / G_REGION_STEP;
+        var x0 = Math.min(count, Math.floor(fx));
+        var x1 = Math.min(count, x0 + 1);
+        var tx = fx - x0;
+
+        var v00 = nodeValues[y0 * side + x0];
+        var v10 = nodeValues[y0 * side + x1];
+        var v01 = nodeValues[y1 * side + x0];
+        var v11 = nodeValues[y1 * side + x1];
+        var v0 = v00 + (v10 - v00) * tx;
+        var v1 = v01 + (v11 - v01) * tx;
+        var value = v0 + (v1 - v0) * ty;
+
+        var f00 = nodeFrontUtil[y0 * side + x0];
+        var f10 = nodeFrontUtil[y0 * side + x1];
+        var f01 = nodeFrontUtil[y1 * side + x0];
+        var f11 = nodeFrontUtil[y1 * side + x1];
+        var rf0 = f00 + (f10 - f00) * tx;
+        var rf1 = f01 + (f11 - f01) * tx;
+        var frontUtilValue = rf0 + (rf1 - rf0) * ty;
+
+        var r00 = nodeRearUtil[y0 * side + x0];
+        var r10 = nodeRearUtil[y0 * side + x1];
+        var r01 = nodeRearUtil[y1 * side + x0];
+        var r11 = nodeRearUtil[y1 * side + x1];
+        var rr0 = r00 + (r10 - r00) * tx;
+        var rr1 = r01 + (r11 - r01) * tx;
+        var rearUtilValue = rr0 + (rr1 - rr0) * ty;
+
+        var l00 = nodeLimits[y0 * side + x0];
+        var l10 = nodeLimits[y0 * side + x1];
+        var l01 = nodeLimits[y1 * side + x0];
+        var l11 = nodeLimits[y1 * side + x1];
+        var l0 = l00 + (l10 - l00) * tx;
+        var l1 = l01 + (l11 - l01) * tx;
+        var limitCoverage = l0 + (l1 - l0) * ty;
+        var maskX = clamp((limitCoverage - 0.30) / 0.45, 0, 1);
+        var heatAlpha = 1 - (maskX * maskX * (3 - 2 * maskX));
+
+        var vehicleState = model.classifyVehicleState(
+          frontUtilValue,
+          rearUtilValue,
+          longValue
+        );
+        var stateColor = vehicleState ? G_STATE_COLORS[vehicleState.code] : null;
+
+        var t = Math.tanh(value / G_DELTA_SCALE_PP);
+        var lutIndex = clamp(Math.round((t + 1) * 127.5), 0, 255);
+        var colorIndex = lutIndex * 4;
+        var baseR = gHeatColorLut[colorIndex];
+        var baseG = gHeatColorLut[colorIndex + 1];
+        var baseB = gHeatColorLut[colorIndex + 2];
+
+        pixelStates[py * imageWidth + px] = vehicleState
+          ? (G_STATE_INDEX[vehicleState.code] || 0)
+          : 0;
+
+        if (stateColor) {
+          // Keep the state as a faint categorical wash; the bright contour and
+          // label carry the state while the field stays readable.
+          pixels[dataIndex] = Math.round(baseR * 0.05 + stateColor[0] * 0.95);
+          pixels[dataIndex + 1] = Math.round(baseG * 0.05 + stateColor[1] * 0.95);
+          pixels[dataIndex + 2] = Math.round(baseB * 0.05 + stateColor[2] * 0.95);
+          pixels[dataIndex + 3] = 52;
+        } else {
+          pixels[dataIndex] = baseR;
+          pixels[dataIndex + 1] = baseG;
+          pixels[dataIndex + 2] = baseB;
+          pixels[dataIndex + 3] = Math.round(255 * heatAlpha);
+        }
+        dataIndex += 4;
+      }
+    }
+
+    // Bright one-pixel contours make each state region legible without hiding
+    // the rest of the field.
+    for (var borderPy = 0; borderPy < imageHeight; borderPy += 1) {
+      for (var borderPx = 0; borderPx < imageWidth; borderPx += 1) {
+        var borderIndex = borderPy * imageWidth + borderPx;
+        var borderState = pixelStates[borderIndex];
+        if (!borderState) {
+          continue;
+        }
+        var isBoundary =
+          (borderPx > 0 && pixelStates[borderIndex - 1] !== borderState) ||
+          (borderPx < imageWidth - 1 && pixelStates[borderIndex + 1] !== borderState) ||
+          (borderPy > 0 && pixelStates[borderIndex - imageWidth] !== borderState) ||
+          (borderPy < imageHeight - 1 && pixelStates[borderIndex + imageWidth] !== borderState);
+        if (!isBoundary) {
+          continue;
+        }
+        var borderColor = G_STATE_COLORS[G_STATE_ORDER[borderState - 1]];
+        if (!borderColor) {
+          continue;
+        }
+        var borderDataIndex = borderIndex * 4;
+        pixels[borderDataIndex] = borderColor[0];
+        pixels[borderDataIndex + 1] = borderColor[1];
+        pixels[borderDataIndex + 2] = borderColor[2];
+        pixels[borderDataIndex + 3] = 255;
+      }
+    }
+
+    imageContext.putImageData(gRegionSampleImage, 0, 0);
+
     var pixelRatio = 2;
     context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
     context.clearRect(0, 0, G_PAD.width, G_PAD.height);
+    context.imageSmoothingEnabled = true;
+    context.imageSmoothingQuality = 'high';
+    context.drawImage(
+      gRegionSampleCanvas,
+      G_PAD.left,
+      G_PAD.top,
+      imageWidth,
+      imageHeight
+    );
 
-    var count = Math.round((G_PAD.gMax - G_PAD.gMin) / G_REGION_STEP);
+    updateGStateLabels(nodeStateIndex, side, count);
+  }
 
-    for (var row = 0; row < count; row += 1) {
-      var longLow = G_PAD.gMin + row * G_REGION_STEP;
-      var longHigh = longLow + G_REGION_STEP;
-      var y = gPadY(longHigh);
-      var cellHeight = gPadY(longLow) - y;
-      var longMid = (longLow + longHigh) / 2;
-
-      for (var column = 0; column < count; column += 1) {
-        var latLow = G_PAD.gMin + column * G_REGION_STEP;
-        var latHigh = latLow + G_REGION_STEP;
-        var latMid = (latLow + latHigh) / 2;
-
-        var sample = Object.assign({}, state, {
-          lateralG: latMid,
-          longitudinalG: longMid
-        });
-        var result = model.calculate(sample);
-        var category;
-        if (result.limitExceeded || result.axleLimitReached || result.wheelLift.any) {
-          category = 'limit';
-        } else {
-          category = result.balance;
-        }
-
-        var fill = G_REGION_COLORS[category];
-        if (!fill) {
-          continue;
-        }
-        var x = gPadX(latLow);
-        var cellWidth = gPadX(latHigh) - x;
-        context.fillStyle = fill;
-        context.fillRect(x, y, cellWidth + 0.08, cellHeight + 0.08);
-      }
+  function updateGStateLabels(nodeStateIndex, side, count) {
+    var group = $('gPadStateLabels');
+    if (!group) {
+      return;
     }
+    clearSvgGroup(group);
+
+    var seen = new Uint8Array(nodeStateIndex.length);
+    var candidates = [];
+    var total = nodeStateIndex.length;
+
+    for (var start = 0; start < total; start += 1) {
+      var target = nodeStateIndex[start];
+      if (!target || seen[start]) {
+        continue;
+      }
+
+      var stack = [start];
+      var nodes = [];
+      seen[start] = 1;
+      var rowSum = 0;
+      var columnSum = 0;
+
+      while (stack.length) {
+        var current = stack.pop();
+        nodes.push(current);
+        var currentRow = Math.floor(current / side);
+        var currentColumn = current % side;
+        rowSum += currentRow;
+        columnSum += currentColumn;
+
+        if (currentRow > 0) {
+          var up = current - side;
+          if (!seen[up] && nodeStateIndex[up] === target) {
+            seen[up] = 1;
+            stack.push(up);
+          }
+        }
+        if (currentRow < side - 1) {
+          var down = current + side;
+          if (!seen[down] && nodeStateIndex[down] === target) {
+            seen[down] = 1;
+            stack.push(down);
+          }
+        }
+        if (currentColumn > 0) {
+          var left = current - 1;
+          if (!seen[left] && nodeStateIndex[left] === target) {
+            seen[left] = 1;
+            stack.push(left);
+          }
+        }
+        if (currentColumn < side - 1) {
+          var right = current + 1;
+          if (!seen[right] && nodeStateIndex[right] === target) {
+            seen[right] = 1;
+            stack.push(right);
+          }
+        }
+      }
+
+      var meanRow = rowSum / nodes.length;
+      var meanColumn = columnSum / nodes.length;
+      var bestNode = nodes[0];
+      var bestDistance = Infinity;
+      nodes.forEach(function (node) {
+        var distance = Math.pow(Math.floor(node / side) - meanRow, 2) +
+          Math.pow((node % side) - meanColumn, 2);
+        if (distance < bestDistance) {
+          bestDistance = distance;
+          bestNode = node;
+        }
+      });
+
+      var labelRow = Math.floor(bestNode / side);
+      var labelColumn = bestNode % side;
+      candidates.push({
+        code: G_STATE_ORDER[target - 1],
+        size: nodes.length,
+        x: gPadX(G_PAD.gMin + labelColumn * G_REGION_STEP),
+        y: gPadY(G_PAD.gMin + labelRow * G_REGION_STEP)
+      });
+    }
+
+    candidates.sort(function (a, b) {
+      return b.size - a.size;
+    });
+
+    var placed = [];
+    var labelCount = 0;
+    var perStateCount = {};
+    candidates.forEach(function (candidate) {
+      if (labelCount >= 8) {
+        return;
+      }
+      var stateCount = perStateCount[candidate.code] || 0;
+      if (stateCount >= 2) {
+        return;
+      }
+      var x = clamp(
+        candidate.x,
+        G_PAD.left + 22,
+        G_PAD.width - G_PAD.right - 22
+      );
+      var y = clamp(
+        candidate.y + 3,
+        G_PAD.top + 12,
+        G_PAD.bottom - 8
+      );
+      for (var i = 0; i < placed.length; i += 1) {
+        if (Math.hypot(placed[i].x - x, placed[i].y - y) < 46) {
+          return;
+        }
+      }
+      var color = G_STATE_COLORS[candidate.code];
+      if (!color) {
+        return;
+      }
+      placed.push({ x: x, y: y });
+      perStateCount[candidate.code] = stateCount + 1;
+      labelCount += 1;
+
+      var label = createSvgElement('text', {
+        x: x.toFixed(2),
+        y: y.toFixed(2),
+        class: 'g-pad-state-label',
+        'data-state': candidate.code,
+        fill: 'rgb(' + color[0] + ', ' + color[1] + ', ' + color[2] + ')'
+      }, G_STATE_LABELS[candidate.code] || candidate.code);
+      group.appendChild(label);
+    });
   }
 
   function refreshGRegionsIfNeeded() {
@@ -819,6 +1202,7 @@
       ? Math.round(result.cornerRadiusM) + ' m'
       : '—');
     setText('gPhaseBadge', phase);
+    updateVehicleStateBadge(result);
     setText('gLongTransferNote',
       '纵向转移 后轴 ' + formatSigned(transferKn, 2) + ' kN');
 
@@ -844,6 +1228,41 @@
       '二维 G-G 输入。侧向 ' + formatSigned(lat, 2) + ' g（' + directionEn +
       '），纵向 ' + formatSigned(long, 2) + ' g，合成 ' + magnitude.toFixed(2) +
       ' g，阶段 ' + phase + '。拖动或使用方向键调整。');
+  }
+
+  function updateVehicleStateBadge(result) {
+    var badge = $('gVehicleState');
+    var code;
+    var label;
+    var labelEn;
+    var description;
+
+    if (result.vehicleState) {
+      code = result.vehicleState.code;
+      label = result.vehicleState.label;
+      labelEn = result.vehicleState.labelEn;
+      description = G_STATE_DESCRIPTIONS[code] || '';
+    } else if (result.axleLimitReached) {
+      code = 'axle-limit';
+      label = '单轴极限';
+      labelEn = 'AXLE LIMIT';
+      description = '有轴达到 100%，但纵向 G 未超过 ±' +
+        model.VEHICLE_STATE_LONG_THRESHOLD_G.toFixed(2) + ' g';
+    } else {
+      code = 'grip';
+      label = '抓地内';
+      labelEn = 'WITHIN GRIP';
+      description = '两轴联合利用率均低于 100%';
+    }
+
+    if (badge) {
+      badge.setAttribute('data-state', code);
+      badge.setAttribute('aria-label',
+        label + ' / ' + labelEn + '，' + description);
+    }
+    setText('gVehicleStateLabel', label);
+    setText('gVehicleStateEn', labelEn);
+    setText('gVehicleStateDesc', description);
   }
 
   function setGInput(lat, long) {
@@ -948,7 +1367,7 @@
         ((px - G_PAD.left) / (G_PAD.width - G_PAD.left - G_PAD.right)) *
         (G_PAD.gMax - G_PAD.gMin);
       var long = G_PAD.gMin +
-        ((G_PAD.bottom - py) / (G_PAD.bottom - G_PAD.top)) *
+        ((py - G_PAD.top) / (G_PAD.bottom - G_PAD.top)) *
         (G_PAD.gMax - G_PAD.gMin);
 
       setGInput(Math.round(lat * 100) / 100, Math.round(long * 100) / 100);
@@ -1006,10 +1425,10 @@
           lat += step;
           break;
         case 'ArrowUp':
-          long += step;
+          long -= step;
           break;
         case 'ArrowDown':
-          long -= step;
+          long += step;
           break;
         default:
           handled = false;
@@ -1895,8 +2314,8 @@
           render();
         }
       });
-      if (typeof scene.setVehicleDimensions === 'function') {
-        scene.setVehicleDimensions(currentCar);
+      if (typeof scene.setCar === 'function') {
+        scene.setCar(currentCar);
       }
       scene.setModel(model.calculate(state));
     } catch (error) {
