@@ -503,7 +503,7 @@
             <div class="eyebrow">AXLE GRIP / FORCE BUDGET</div>
             <h2 id="axleTitle">前后轴总抓地力</h2>
           </div>
-          <p>载荷转移百分比 = ΔFz / 该轴总垂直载荷；判定使用「需求 / 总抓地力」的利用率，而不是单纯比较前后绝对值。</p>
+          <p>载荷转移百分比 = ΔFz / 该轴总垂直载荷</p>
         </div>
 
         <div class="axle-grid">
@@ -620,7 +620,7 @@
           <div class="source-summary">
             <span class="eyebrow">MODEL / PROVENANCE</span>
             <span class="source-summary-title">数据来源、公式与模型边界</span>
-            <span class="source-summary-hint">AC data.acd 只读解包 · 弹簧/ARB 为轮端等效</span>
+            <span class="source-summary-hint">AC解包 · 弹簧/ARB 为轮端等效</span>
           </div>
           <span class="summary-toggle" aria-hidden="true"></span>
         </summary>
@@ -643,7 +643,7 @@
           </div>
 
           <div class="source-block">
-            <h4>模型链 <span>TRANSPARENT MECHANISM</span></h4>
+            <h4>机制 <span>MECHANISM</span></h4>
             <p class="model-copy">
               弹簧与 ARB 先合并为各轴轮端刚度，再形成前后侧倾刚度分配。横向载荷转移按该分配进入左右轮；每个轴的总抓地力随载荷转移近似线性下降。利用率决定哪一轴先饱和。
             </p>
@@ -656,9 +656,8 @@ U = F_demand / F_grip</code></pre>
             <ul class="assumption-list">
               <li>稳态、纯侧向、平地；无空气动力学、差速器锁止、瞬态/转向输入。</li>
               <li>载荷转移抓地损失使用可调等效系数 <b>k</b>，不是 AC 的逐点 Pacejka 轮胎复刻。</li>
-              <li>3D 底盘按 AC 的 <b>STRUT / DWB</b> 架构、GT86 轴距/轮距与轮端刚度做<b>简化机构示意</b>；不逐点复刻 suspensions.ini 硬点。</li>
-              <li>ARB 的 AC 原文件注释与 CSP 文档在单位表述上存在差异；此处按等效轮端 N/m 读取，所有“轴总抓地力”用于解释趋势，不作绝对圈速预测。</li>
-              <li>原始 data.acd 与游戏文件未被修改。</li>
+              <li>3D 底盘按 AC 的 <b>STRUT / DWB</b> 架构、GT86 轴距/轮距与轮端刚度做<b>简化机构示意</b> </li>
+              <li>ARB 的 AC 原文件注释与 CSP 文档在单位表述上存在差异；按等效轮端 N/m 读取。</li>
             </ul>
           </div>
         </div>
@@ -669,7 +668,7 @@ U = F_demand / F_grip</code></pre>
   <footer class="site-footer">
     <span>Cornering Lab · Toyota GT86 ZN6</span>
     <span class="footer-sep" aria-hidden="true"></span>
-    <span>STEADY-STATE MECHANISM DEMO · NOT A LAP-TIME SIMULATOR</span>
+    <span>STEADY-STATE MECHANISM DEMO</span>
     <span class="footer-sep" aria-hidden="true"></span>
     <span>3D: Three.js r149 · MIT</span>
   </footer>
