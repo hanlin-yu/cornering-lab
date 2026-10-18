@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="dark">
-  <meta name="description" content="GT86 ZN6 3D 底盘、侧倾刚度与前后轴抓地力平衡实验台。">
+  <meta name="description" content="GT86 ZN6 3D 底盘、CoG/G 力显示、侧倾刚度与前后轴抓地力平衡实验台。">
   <title>GT86 Cornering Lab · 3D 底盘与抓地平衡</title>
   <link rel="stylesheet" href="styles.css">
 </head>
@@ -365,6 +365,12 @@
                 </div>
                 <div class="part-label part-label--arb" data-part-label="frontArb"><i></i>F-ARB</div>
                 <div class="part-label part-label--arb" data-part-label="rearArb"><i></i>R-ARB</div>
+                <div class="transfer-label transfer-label--front" data-transfer-label="front">
+                  <span>前</span><span>ΔFz/Fz</span><b id="frontTransferLabelPct">29.8</b><small>%</small>
+                </div>
+                <div class="transfer-label transfer-label--rear" data-transfer-label="rear">
+                  <span>后</span><span>ΔFz/Fz</span><b id="rearTransferLabelPct">15.1</b><small>%</small>
+                </div>
               </div>
 
               <div class="datum-label datum-label--cog" data-cog-label>
@@ -375,6 +381,13 @@
               <div class="datum-label datum-label--g" data-g-label>
                 <span>G</span>
                 <b id="gVectorValue">0.85</b><small>g</small>
+              </div>
+
+              <div class="scene-mobile-metrics" aria-label="三维视图数据">
+                <span>CoG <b id="mobileCogHeight">0.423</b><small>m</small></span>
+                <span>G <b id="mobileGValue">0.85</b><small>g</small></span>
+                <span class="metric-front">F ΔFz/Fz <b id="mobileFrontTransfer">29.8</b><small>%</small></span>
+                <span class="metric-rear">R ΔFz/Fz <b id="mobileRearTransfer">15.1</b><small>%</small></span>
               </div>
 
               <div class="scene-bottom">
@@ -496,7 +509,7 @@
             <div class="eyebrow">AXLE GRIP / FORCE BUDGET</div>
             <h2 id="axleTitle">前后轴总抓地力</h2>
           </div>
-          <p>总抓地力由该轴左右轮共同提供；判定使用「需求 / 总抓地力」的利用率，而不是单纯比较前后绝对值。</p>
+          <p>载荷转移百分比 = ΔFz / 该轴总垂直载荷；判定使用「需求 / 总抓地力」的利用率，而不是单纯比较前后绝对值。</p>
         </div>
 
         <div class="axle-grid">
@@ -535,8 +548,8 @@
 
             <div class="axle-details">
               <div>
-                <span>左右载荷转移 <small>ΔFz</small></span>
-                <strong><span id="frontLoadTransferValue">2.16</span> kN</strong>
+                <span>轴载荷转移 <small>ΔFz / Fz</small></span>
+                <strong><span id="frontTransferPct">29.8</span>%<em id="frontTransferAbs"> · 2.16 kN</em></strong>
               </div>
               <div>
                 <span>侧倾刚度占比 <small>ROLL SHARE</small></span>
@@ -588,8 +601,8 @@
 
             <div class="axle-details">
               <div>
-                <span>左右载荷转移 <small>ΔFz</small></span>
-                <strong><span id="rearLoadTransferValue">0.81</span> kN</strong>
+                <span>轴载荷转移 <small>ΔFz / Fz</small></span>
+                <strong><span id="rearTransferPct">15.1</span>%<em id="rearTransferAbs"> · 0.81 kN</em></strong>
               </div>
               <div>
                 <span>侧倾刚度占比 <small>ROLL SHARE</small></span>

@@ -253,16 +253,19 @@
     var frontShare = (result.rollStiffness.frontShare * 100).toFixed(1);
     var rearShare = (result.rollStiffness.rearShare * 100).toFixed(1);
 
+    var frontTransferPct = (result.loadTransferRatio.front * 100).toFixed(1);
+    var rearTransferPct = (result.loadTransferRatio.rear * 100).toFixed(1);
+
     if (result.balance === 'understeer') {
       element.innerHTML =
         '前轴侧倾刚度占比 <strong>' + frontShare + '%</strong>，前轴产生 <strong>' +
-        formatForce(result.frontLoadTransfer) + ' kN</strong> 的左右载荷转移，' +
+        formatForce(result.frontLoadTransfer) + ' kN（' + frontTransferPct + '% Fz）</strong> 的左右载荷转移，' +
         '轴总抓地力被压到 <strong>' + formatForce(result.grip.front) + ' kN</strong>。' +
         '前轴利用率高出后轴 <strong>' + delta + ' pp</strong>，前轮先到极限。';
     } else if (result.balance === 'oversteer') {
       element.innerHTML =
         '后轴侧倾刚度占比 <strong>' + rearShare + '%</strong>，后轴产生 <strong>' +
-        formatForce(result.rearLoadTransfer) + ' kN</strong> 的左右载荷转移，' +
+        formatForce(result.rearLoadTransfer) + ' kN（' + rearTransferPct + '% Fz）</strong> 的左右载荷转移，' +
         '轴总抓地力被压到 <strong>' + formatForce(result.grip.rear) + ' kN</strong>。' +
         '后轴利用率高出前轴 <strong>' + delta + ' pp</strong>，后轮先到极限。';
     } else {
@@ -300,8 +303,16 @@
       rearReserveElement.classList.toggle('is-over', rearReserve < 0);
     }
 
-    setText('frontLoadTransferValue', formatForce(result.frontLoadTransfer));
-    setText('rearLoadTransferValue', formatForce(result.rearLoadTransfer));
+    var frontTransferPct = (result.loadTransferRatio.front * 100).toFixed(1);
+    var rearTransferPct = (result.loadTransferRatio.rear * 100).toFixed(1);
+    setText('frontTransferPct', frontTransferPct);
+    setText('rearTransferPct', rearTransferPct);
+    setText('frontTransferLabelPct', frontTransferPct);
+    setText('rearTransferLabelPct', rearTransferPct);
+    setText('mobileFrontTransfer', frontTransferPct);
+    setText('mobileRearTransfer', rearTransferPct);
+    setText('frontTransferAbs', ' · ' + formatForce(result.frontLoadTransfer) + ' kN');
+    setText('rearTransferAbs', ' · ' + formatForce(result.rearLoadTransfer) + ' kN');
     setText('frontRollShareValue', (result.rollStiffness.frontShare * 100).toFixed(1));
     setText('rearRollShareValue', (result.rollStiffness.rearShare * 100).toFixed(1));
     setText('frontWheelLoadsValue',
@@ -382,6 +393,8 @@
     setText('sceneFrontShareValue', (result.rollStiffness.frontShare * 100).toFixed(1));
     setText('cogHeightValue', result.state.cgHeightM.toFixed(3));
     setText('gVectorValue', result.state.lateralG.toFixed(2));
+    setText('mobileCogHeight', result.state.cgHeightM.toFixed(3));
+    setText('mobileGValue', result.state.lateralG.toFixed(2));
 
     var frontShare = result.rollStiffness.frontShare * 100;
     var rearShare = 100 - frontShare;

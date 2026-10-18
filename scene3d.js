@@ -234,9 +234,11 @@
     this.springs = [];
     this.wheelLabels = Array.prototype.slice.call(container.querySelectorAll('[data-wheel-label]'));
     this.partLabels = Array.prototype.slice.call(container.querySelectorAll('[data-part-label]'));
+    this.transferLabels = Array.prototype.slice.call(container.querySelectorAll('[data-transfer-label]'));
     this.cogLabel = container.querySelector('[data-cog-label]');
     this.gLabel = container.querySelector('[data-g-label]');
     this.partAnchors = {};
+    this.transferAnchors = {};
     this.currentGArrowLength = 1.3;
     this.loading = container.querySelector('.scene-loading');
     this.frontAxleZ = DIM.wheelbase / 2;
@@ -795,6 +797,15 @@
       self.body.add(labelAnchor);
       self.partAnchors[axle.id + 'Arb'] = labelAnchor;
 
+      var transferAnchor = new THREE.Object3D();
+      transferAnchor.position.set(
+        axle.id === 'front' ? -0.33 : 0.33,
+        barY + 0.115 - DIM.rollCenterY,
+        axle.z
+      );
+      self.body.add(transferAnchor);
+      self.transferAnchors[axle.id] = transferAnchor;
+
       [-0.38, 0.38].forEach(function (x) {
         self.addChassisTube(
           [x, barY - 0.015, axle.z],
@@ -1104,7 +1115,7 @@
   };
 
   CorneringChassisScene.prototype.updateLabelPositions = function () {
-    if (!this.wheelLabels.length && !this.partLabels.length && !this.cogLabel && !this.gLabel) {
+    if (!this.wheelLabels.length && !this.partLabels.length && !this.transferLabels.length && !this.cogLabel && !this.gLabel) {
       return;
     }
 
@@ -1159,6 +1170,23 @@
       label.style.transform = 'translate(-50%, -50%) translate(' +
         position.x.toFixed(1) + 'px, ' + position.y.toFixed(1) + 'px)';
       label.style.opacity = visible ? '0.9' : '0';
+    });
+
+    this.transferLabels.forEach(function (label) {
+      var key = label.getAttribute('data-transfer-label');
+      var anchor = self.transferAnchors[key];
+      if (!anchor) {
+        label.style.opacity = '0';
+        return;
+      }
+      TMP_A.setFromMatrixPosition(anchor.matrixWorld);
+      var position = projectAnchor(TMP_A);
+      var visible = position.visible &&
+        position.x > 0 && position.x < width &&
+        position.y > 0 && position.y < height;
+      label.style.transform = 'translate(-50%, -50%) translate(' +
+        position.x.toFixed(1) + 'px, ' + position.y.toFixed(1) + 'px)';
+      label.style.opacity = visible ? '1' : '0';
     });
 
     if (this.cogLabel) {

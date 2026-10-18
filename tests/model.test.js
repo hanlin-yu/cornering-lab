@@ -36,6 +36,8 @@ test('GT86 defaults reproduce the source geometry and near-understeer balance', 
   approx(r.grip.front, 8628, 5, 'front grip');
   approx(r.grip.rear, 6612, 5, 'rear grip');
   approx(r.deltaPP, 2.54, 0.05, 'balance delta');
+  approx(r.loadTransferRatio.front, 0.2977, 0.001, 'front load-transfer ratio');
+  approx(r.loadTransferRatio.rear, 0.1514, 0.001, 'rear load-transfer ratio');
   assert.equal(r.balance, 'understeer');
 });
 

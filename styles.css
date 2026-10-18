@@ -1391,6 +1391,98 @@ input:focus-visible {
   color: var(--front);
 }
 
+.transfer-label {
+  --transfer-color: var(--front);
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  padding: 4px 6px;
+  border: 1px solid rgba(170, 201, 213, 0.14);
+  border-left: 2px solid var(--transfer-color);
+  border-radius: 5px;
+  color: #aebfc5;
+  background: rgba(8, 14, 18, 0.76);
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.035em;
+  pointer-events: none;
+  opacity: 0;
+  will-change: transform, opacity;
+  transition: opacity 0.18s ease;
+}
+
+.transfer-label--rear {
+  --transfer-color: var(--rear);
+}
+
+.transfer-label > span:first-child {
+  color: var(--transfer-color);
+  font-weight: 600;
+}
+
+.transfer-label b {
+  color: #eff8fa;
+  font-size: 11.5px;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+}
+
+.transfer-label small {
+  color: var(--faint);
+  font-size: 8.4px;
+}
+
+.scene-mobile-metrics {
+  position: absolute;
+  right: 16px;
+  bottom: 48px;
+  left: 16px;
+  z-index: 4;
+  display: none;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 5px 14px;
+  padding: 8px 10px;
+  border: 1px solid rgba(170, 201, 213, 0.16);
+  border-radius: 8px;
+  color: #a4b7bd;
+  background: rgba(7, 13, 17, 0.76);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.03em;
+  pointer-events: none;
+  backdrop-filter: blur(9px);
+}
+
+.scene-mobile-metrics > span {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.scene-mobile-metrics b {
+  color: #eff8fa;
+  font-size: 11.5px;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+}
+
+.scene-mobile-metrics small {
+  color: var(--faint);
+  font-size: 8px;
+}
+
+.scene-mobile-metrics .metric-front {
+  color: var(--front);
+}
+
+.scene-mobile-metrics .metric-rear {
+  color: var(--rear);
+}
+
 /* Bottom HUD */
 
 .scene-bottom {
@@ -2347,6 +2439,16 @@ input:focus-visible {
   font-size: inherit;
 }
 
+.axle-details strong em {
+  color: var(--faint);
+  font-family: var(--font-mono);
+  font-size: 0.84em;
+  font-style: normal;
+  font-weight: 400;
+  letter-spacing: 0;
+  white-space: nowrap;
+}
+
 /* --------------------------------------------------------------------------
    Data/source panel
    -------------------------------------------------------------------------- */
@@ -2989,12 +3091,15 @@ input:focus-visible {
     min-width: 58px;
   }
 
-  .part-label {
+  .part-label,
+  .datum-label,
+  .transfer-label,
+  .scene-telemetry {
     display: none;
   }
 
-  .scene-telemetry {
-    display: none;
+  .scene-mobile-metrics {
+    display: grid;
   }
 
   .orbit-hint {
@@ -3065,5 +3170,18 @@ input:focus-visible {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+}
+
+@media (max-width: 700px) {
+  .part-label,
+  .datum-label,
+  .transfer-label,
+  .scene-telemetry {
+    display: none;
+  }
+
+  .scene-mobile-metrics {
+    display: grid;
   }
 }
