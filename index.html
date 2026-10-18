@@ -4,7 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="dark">
-  <meta name="description" content="GT86 ZN6 3D 底盘、CoG/G 力显示、侧倾刚度与前后轴抓地力平衡实验台。">
+  <meta name="description" content="GT86 ZN6 3D 底盘、二维 G-G 输入、CoG/G 力显示、侧倾刚度与前后轴抓地力平衡实验台。">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23081014'/%3E%3Ccircle cx='32' cy='32' r='18' fill='none' stroke='%235ad7d2' stroke-width='3'/%3E%3Cpath d='M14 32h12M38 32h12' stroke='%235ad7d2' stroke-width='3' stroke-linecap='round'/%3E%3Ccircle cx='32' cy='32' r='4' fill='%23eafbfc'/%3E%3C/svg%3E">
   <title>GT86 Cornering Lab · 3D 底盘与抓地平衡</title>
   <link rel="stylesheet" href="styles.css">
 </head>
@@ -33,8 +34,8 @@
     </div>
     <div class="header-meta" aria-label="模型说明">
       <span class="tag">ZN6</span>
-      <span class="tag">SEMISLICKS</span>
-      <span class="tag tag--quiet">STEADY STATE · PURE LATERAL</span>
+      <span class="tag" id="compoundTag">SEMISLICKS</span>
+      <span class="tag tag--quiet">STEADY STATE · 2D G-G</span>
     </div>
   </header>
 
@@ -50,29 +51,105 @@
 
       <section class="control-section condition-section" aria-labelledby="conditionTitle">
         <div class="section-heading">
-          <h3 id="conditionTitle">过弯条件 <span>CORNER LOAD</span></h3>
+          <h3 id="conditionTitle">过弯条件 <span>G-G INPUT</span></h3>
+          <span class="g-phase-badge" id="gPhaseBadge">弯中 / MID</span>
         </div>
-        <div class="condition-readout">
-          <div class="condition-value">
-            <span id="ayValue">0.85</span><small>g</small>
+
+        <div class="g-readout">
+          <div class="g-readout-values">
+            <div class="condition-value">
+              <span id="ayValue">0.85</span><small>g LAT</small>
+            </div>
+            <div class="condition-value condition-value--long">
+              <span id="longGValue">0.00</span><small>g LONG</small>
+            </div>
           </div>
-          <div class="condition-side">
-            <span>稳态侧向加速度</span>
-            <strong>100 km/h 等径弯 <span id="radiusValue">92 m</span></strong>
+          <div class="g-readout-meta">
+            <span>合成 <b id="gMagValue">0.85</b> g</span>
+            <span>100 km/h 等径弯 R <b id="radiusValue">93 m</b></span>
           </div>
         </div>
-        <label class="sr-only" for="lateralGRange">弯中侧向加速度</label>
-        <input
-          class="range range--neutral"
-          id="lateralGRange"
-          data-param="lateralG"
-          type="range"
-          min="0.20"
-          max="1.40"
-          step="0.01"
-          value="0.85"
+
+        <div
+          class="g-pad"
+          id="gPad"
+          tabindex="0"
+          role="application"
+          aria-label="二维 G 输入：横向为纵向 G，纵向为侧向 G。拖动光标或使用方向键调节。"
         >
-        <div class="range-scale" aria-hidden="true"><span>0.20</span><span>0.80</span><span>1.40 g</span></div>
+          <svg id="gPadSvg" viewBox="0 0 320 190" aria-hidden="true">
+            <defs>
+              <linearGradient id="gPadGuideGradient" x1="0" y1="1" x2="1" y2="0">
+                <stop offset="0" stop-color="#5ad7d2" stop-opacity=".7"/>
+                <stop offset=".55" stop-color="#d8e7ea" stop-opacity=".3"/>
+                <stop offset="1" stop-color="#f2b25e" stop-opacity=".7"/>
+              </linearGradient>
+            </defs>
+            <g id="gPadGrid" class="g-pad-grid"></g>
+            <g id="gPadAxes" class="g-pad-axes"></g>
+            <path id="gPadCornerGuide" class="g-pad-guide" fill="none"></path>
+            <path id="gPadTrail" class="g-pad-trail" fill="none"></path>
+            <line id="gPadProjectionX" class="g-pad-projection" aria-hidden="true"></line>
+            <line id="gPadProjectionY" class="g-pad-projection" aria-hidden="true"></line>
+            <circle id="gPadCursorHalo" class="g-pad-cursor-halo" r="10" aria-hidden="true"></circle>
+            <circle id="gPadCursor" class="g-pad-cursor" r="4.4" aria-hidden="true"></circle>
+          </svg>
+        </div>
+
+        <div class="g-pad-footer">
+          <button class="g-play-button" id="gPlayButton" type="button" aria-pressed="false">
+            <span class="g-play-icon" aria-hidden="true"></span>
+            <span id="gPlayLabel">扫弯回放</span>
+          </button>
+          <button class="g-clear-button" id="gClearTrailButton" type="button">清轨迹</button>
+        </div>
+
+        <p class="g-pad-note">
+          拖动设置 G；回放从入弯制动到出弯加速。仅模拟载荷转移与荷重 μ。
+          <span id="gLongTransferNote">纵向转移 后轴 +0.00 kN</span>
+        </p>
+      </section>
+
+      <section class="control-section tyre-section" aria-labelledby="tyreTitle">
+        <div class="section-heading">
+          <h3 id="tyreTitle">轮胎模型 <span>AC TYRE / μ–Fz</span></h3>
+        </div>
+
+        <div class="tyre-select-row">
+          <label for="tyreCompoundSelect">AC 解包轮胎</label>
+          <select id="tyreCompoundSelect">
+            <option value="semislicks" selected>Semislicks · SM</option>
+            <option value="street">Street · ST</option>
+            <option value="eco">ECO · E</option>
+            <option value="custom">自定义 · CUSTOM</option>
+          </select>
+        </div>
+
+        <div class="tyre-readouts">
+          <span>μ_ref <b id="tyreMuReadout">1.280</b></span>
+          <span>k <b id="tyreKReadout">0.188</b></span>
+          <span>FZ0 <b id="tyreFz0Readout">2494</b><small>N</small></span>
+        </div>
+
+        <div class="tyre-custom-fields" id="tyreCustomFields" hidden>
+          <label>
+            <span>基准 μ_ref</span>
+            <input data-param="tireMuRef" type="number" min="0.60" max="1.80" step="0.005" value="1.28" inputmode="decimal">
+          </label>
+          <label>
+            <span>k · 载荷敏感指数</span>
+            <input data-param="tireLoadSensitivityK" type="number" min="0" max="0.8" step="0.001" value="0.1881" inputmode="decimal">
+          </label>
+        </div>
+
+        <p class="tyre-formula">
+          <span class="tyre-formula-kicker">POINTWISE LOAD SENSITIVITY</span>
+          <strong>μ(Fz) = μ_ref · (Fz / FZ0)<sup>−k</sup></strong>
+          <small>k = 1 − LS_EXPY；逐轮按实际 Fz 计算 Fy,max = μ(Fz) · Fz。</small>
+        </p>
+        <p class="tyre-scope">
+          仅模拟底盘重心转移与载荷敏感 μ(Fz)；忽略轮胎滑移角 / 滑移率对 μ 的影响。
+        </p>
       </section>
 
       <section class="control-section stiffness-section" aria-labelledby="stiffnessTitle">
@@ -263,7 +340,7 @@
 
       <details class="advanced-section">
         <summary>
-          <span>高级车辆 / 轮胎参数 <small>ADVANCED</small></span>
+          <span>高级车辆参数 <small>ADVANCED</small></span>
           <i aria-hidden="true"></i>
         </summary>
         <div class="advanced-grid">
@@ -275,22 +352,11 @@
             <span>前轴荷 <small>FRONT · %</small></span>
             <input id="frontWeightPct" type="number" min="40" max="66" step="0.1" value="57.5" inputmode="decimal">
           </label>
-          <label class="advanced-field">
+          <label class="advanced-field advanced-field--wide">
             <span>质心高度 <small>CG · m</small></span>
             <input data-param="cgHeightM" type="number" min="0.20" max="0.70" step="0.005" value="0.4226" inputmode="decimal">
           </label>
-          <label class="advanced-field">
-            <span>轮胎基准 μ <small>DY_REF</small></span>
-            <input data-param="tireMuRef" type="number" min="0.60" max="1.80" step="0.01" value="1.28" inputmode="decimal">
-          </label>
-          <label class="advanced-field advanced-field--wide">
-            <span>载荷转移抓地损失 <small>EFFECTIVE k</small></span>
-            <input data-param="loadTransferLoss" type="number" min="0" max="0.6" step="0.01" value="0.30" inputmode="decimal">
-          </label>
         </div>
-        <p class="advanced-hint">
-          <strong>k</strong> 是用于仪表化的等效线性损失系数，不是 AC 的逐点轮胎曲线；设为 0 可观察“无载荷敏感 = 刚度不改变轴抓地力”。
-        </p>
         <button class="text-button" id="resetAllButton" type="button">恢复全部 GT86 数据</button>
       </details>
 
@@ -323,7 +389,7 @@
                   <div class="scene-subline">
                     <span class="mini-pill mini-pill--front"><i></i>前轴</span>
                     <span class="mini-pill mini-pill--rear"><i></i>后轴</span>
-                    <span class="scene-turn">左转 · 载荷转移至外侧</span>
+                    <span class="scene-turn" id="scenePhaseText">左转 · 中段 / MID</span>
                   </div>
                 </div>
                 <div class="scene-actions">
@@ -337,9 +403,10 @@
               </div>
 
               <div class="scene-g-value">
-                <span class="scene-g-label">LATERAL</span>
-                <strong><span id="sceneAyValue">0.85</span><small>g</small></strong>
+                <span class="scene-g-label">LATERAL / LONGITUDINAL</span>
+                <strong><span id="sceneAyValue">0.85</span><small>g LAT</small></strong>
                 <span class="scene-g-radius">R <span id="sceneRadiusValue">92</span> m @ 100 km/h</span>
+                <span class="scene-g-long">LONG <b id="sceneLongGValue">0.00</b> g · Σ <b id="sceneGTotalValue">0.85</b> g</span>
               </div>
 
               <div class="scene-wheel-labels" aria-hidden="true">
@@ -376,12 +443,13 @@
               </div>
               <div class="datum-label datum-label--g" data-g-label>
                 <span>G</span>
-                <b id="gVectorValue">0.85</b><small>g</small>
+                <b id="gVectorValue">0.85</b><small>g Σ</small>
               </div>
 
               <div class="scene-mobile-metrics" aria-label="三维视图数据">
                 <span>CoG <b id="mobileCogHeight">0.423</b><small>m</small></span>
                 <span>G <b id="mobileGValue">0.85</b><small>g</small></span>
+                <span>LONG <b id="mobileLongGValue">0.00</b><small>g</small></span>
               </div>
 
               <div class="scene-bottom">
@@ -408,8 +476,8 @@
                   <strong><span id="sceneFrontShareValue">72.4</span><small>%</small></strong>
                 </div>
                 <div>
-                  <span>前 / 后轴结构</span>
-                  <strong class="telemetry-structure">STRUT / DWB</strong>
+                  <span>后轴纵向转移 / ΔFz</span>
+                  <strong><span id="sceneLongTransferValue">+0.00</span><small>kN</small></strong>
                 </div>
               </div>
             </div>
@@ -461,8 +529,8 @@
               <text class="gauge-center-label" x="150" y="88" text-anchor="middle">NEUTRAL</text>
             </svg>
             <div class="gauge-readout">
-              <span>前轴 − 后轴利用率</span>
-              <strong><span id="balanceDeltaValue">+2.5</span><small>pp</small></strong>
+              <span>前轴 − 后轴联合利用率</span>
+              <strong><span id="balanceDeltaValue">+4.3</span><small>pp</small></strong>
             </div>
           </div>
 
@@ -470,24 +538,24 @@
             <div class="utilisation-row utilisation-row--front">
               <div class="utilisation-label"><span class="axle-dot"></span>前轴<small>UTIL.</small></div>
               <div class="utilisation-track"><span id="frontUtilBar"></span></div>
-              <strong id="frontUtilValue">71.4%</strong>
+              <strong id="frontUtilValue">71.7%</strong>
             </div>
             <div class="utilisation-row utilisation-row--rear">
               <div class="utilisation-label"><span class="axle-dot"></span>后轴<small>UTIL.</small></div>
               <div class="utilisation-track"><span id="rearUtilBar"></span></div>
-              <strong id="rearUtilValue">68.8%</strong>
+              <strong id="rearUtilValue">67.4%</strong>
             </div>
           </div>
 
           <div class="total-grip">
             <div class="total-grip-head">
               <span>轴总抓地力之和 <small>GROSS AXLE GRIP</small></span>
-              <strong><span id="totalGripValue">15.24</span><small>kN</small></strong>
+              <strong><span id="totalGripValue">15.34</span><small>kN</small></strong>
             </div>
             <div class="total-grip-track"><span id="totalGripBar"></span></div>
             <div class="total-grip-foot">
-              <span>需求 <b><span id="totalDemandValue">10.70</span> kN</b></span>
-              <span id="totalHeadroomValue">余量 +4.54 kN</span>
+              <span>合成需求 <b><span id="totalDemandValue">10.71</span> kN</b></span>
+              <span id="totalHeadroomValue">余量 +4.63 kN</span>
             </div>
           </div>
 
@@ -496,6 +564,63 @@
           <div class="warnings" id="warnings" aria-live="polite"></div>
         </aside>
       </div>
+
+      <section class="panel tyre-curve-panel" aria-labelledby="tyreCurveTitle">
+        <div class="tyre-curve-head">
+          <div>
+            <div class="eyebrow">TYRE MODEL / POINTWISE μ–Fz</div>
+            <h2 id="tyreCurveTitle">轮胎抓地曲线</h2>
+          </div>
+          <div class="tyre-curve-summary">
+            <span>当前轮胎 <b id="curveTyreName">Semislicks</b></span>
+            <span>μ_ref <b id="curveMuRef">1.280</b></span>
+            <span>k <b id="curveK">0.188</b></span>
+            <span>FZ0 <b id="curveFz0">2494</b> N</span>
+          </div>
+        </div>
+
+        <div class="tyre-curve-body">
+          <div class="tyre-plot">
+            <svg id="tyreCurveSvg" viewBox="0 0 760 330" role="img" aria-label="轮胎摩擦系数 μ 随垂向载荷 Fz 变化的曲线">
+              <g id="tyreCurveGrid" class="tyre-curve-grid"></g>
+              <g id="tyreCurveAxes" class="tyre-curve-axes"></g>
+              <path id="tyreCurveRear" class="tyre-curve-line tyre-curve-line--rear" fill="none"></path>
+              <path id="tyreCurveFront" class="tyre-curve-line tyre-curve-line--front" fill="none"></path>
+              <g id="tyreCurvePoints" class="tyre-curve-points"></g>
+            </svg>
+            <div class="tyre-curve-legend">
+              <span><i class="tyre-legend-line tyre-legend-line--front"></i>前轴 μ(Fz)</span>
+              <span><i class="tyre-legend-line tyre-legend-line--rear"></i>后轴 μ(Fz)</span>
+              <span><i class="tyre-legend-dot"></i>空心 = 内侧，实心 = 外侧</span>
+            </div>
+          </div>
+
+          <aside class="tyre-curve-side">
+            <p class="tyre-panel-formula">μ(Fz) = μ_ref · (Fz / FZ0)<sup>−k</sup></p>
+            <div class="tyre-point-table">
+              <div class="tyre-point-row tyre-point-row--head">
+                <span>轮位</span><span>Fz</span><span>μ</span>
+              </div>
+              <div class="tyre-point-row tyre-point-row--front" data-tyre-row="FL">
+                <span><i>FL</i>前·内</span><b id="curveFLFz">2.54 kN</b><b id="curveFLMu">1.275</b>
+              </div>
+              <div class="tyre-point-row tyre-point-row--front" data-tyre-row="FR">
+                <span><i>FR</i>前·外</span><b id="curveFRFz">4.70 kN</b><b id="curveFRMu">1.136</b>
+              </div>
+              <div class="tyre-point-row tyre-point-row--rear" data-tyre-row="RL">
+                <span><i>RL</i>后·内</span><b id="curveRLFz">2.27 kN</b><b id="curveRLMu">1.303</b>
+              </div>
+              <div class="tyre-point-row tyre-point-row--rear" data-tyre-row="RR">
+                <span><i>RR</i>后·外</span><b id="curveRRFz">3.08 kN</b><b id="curveRRMu">1.230</b>
+              </div>
+            </div>
+            <p class="tyre-width-note">
+              AC WIDTH：前 215 / 后 215 mm。WIDTH 不进入这条 AC 载荷敏感幂律，因此前后曲线使用相同参数并重合。曲线只随轮荷变化，忽略轮胎滑移对 μ 的影响。
+            </p>
+            <p class="tyre-curve-note" id="tyreCurveNote">四个标记点按当前实际轮荷落在曲线上。</p>
+          </aside>
+        </div>
+      </section>
 
       <section class="axle-section" aria-labelledby="axleTitle">
         <div class="section-heading axle-section-heading">
@@ -516,21 +641,21 @@
                   <p>麦弗逊支柱 · 弹簧 + ARB</p>
                 </div>
               </div>
-              <span class="reserve-badge" id="frontReserveValue">+2.47 kN 余量</span>
+              <span class="reserve-badge" id="frontReserveValue">+2.43 kN 余量</span>
             </div>
 
             <div class="axle-core">
               <div class="axle-primary">
                 <span>总抓地力 <small>TOTAL GRIP</small></span>
-                <strong><span id="frontGripValue">8.63</span><small>kN</small></strong>
+                <strong><span id="frontGripValue">8.59</span><small>kN</small></strong>
               </div>
               <div class="axle-mini">
-                <span>需求 <small>DEMAND</small></span>
+                <span>合成需求 <small>RESULTANT</small></span>
                 <b><span id="frontDemandValue">6.16</span> kN</b>
               </div>
               <div class="axle-mini">
-                <span>利用率 <small>UTIL.</small></span>
-                <b id="frontUtilCardValue">71.4%</b>
+                <span>联合利用率 <small>UTIL.</small></span>
+                <b id="frontUtilCardValue">71.7%</b>
               </div>
             </div>
 
@@ -542,7 +667,7 @@
 
             <div class="axle-details">
               <div>
-                <span>轴载荷转移 <small>ΔFz / Fz</small></span>
+                <span>侧向载荷转移 <small>ΔFz / Fz</small></span>
                 <strong><span id="frontTransferPct">29.8</span>%<em id="frontTransferAbs"> · 2.16 kN</em></strong>
               </div>
               <div>
@@ -557,6 +682,10 @@
                 <span>簧 + 杆总轮端 <small>RATE</small></span>
                 <strong><span id="frontWheelRateValue">62.0</span> N/mm</strong>
               </div>
+              <div class="axle-details-wide">
+                <span>纵向 / 侧向力 <small>FX / FY</small></span>
+                <strong><span id="frontLongForceValue">+0.00</span> / <span id="frontLatForceValue">6.16</span> kN</strong>
+              </div>
             </div>
           </article>
 
@@ -569,21 +698,21 @@
                   <p>双叉臂 · 弹簧 + ARB</p>
                 </div>
               </div>
-              <span class="reserve-badge" id="rearReserveValue">+2.32 kN 余量</span>
+              <span class="reserve-badge" id="rearReserveValue">+2.20 kN 余量</span>
             </div>
 
             <div class="axle-core">
               <div class="axle-primary">
                 <span>总抓地力 <small>TOTAL GRIP</small></span>
-                <strong><span id="rearGripValue">6.61</span><small>kN</small></strong>
+                <strong><span id="rearGripValue">6.75</span><small>kN</small></strong>
               </div>
               <div class="axle-mini">
-                <span>需求 <small>DEMAND</small></span>
+                <span>合成需求 <small>RESULTANT</small></span>
                 <b><span id="rearDemandValue">4.55</span> kN</b>
               </div>
               <div class="axle-mini">
-                <span>利用率 <small>UTIL.</small></span>
-                <b id="rearUtilCardValue">68.8%</b>
+                <span>联合利用率 <small>UTIL.</small></span>
+                <b id="rearUtilCardValue">67.4%</b>
               </div>
             </div>
 
@@ -595,7 +724,7 @@
 
             <div class="axle-details">
               <div>
-                <span>轴载荷转移 <small>ΔFz / Fz</small></span>
+                <span>侧向载荷转移 <small>ΔFz / Fz</small></span>
                 <strong><span id="rearTransferPct">15.1</span>%<em id="rearTransferAbs"> · 0.81 kN</em></strong>
               </div>
               <div>
@@ -610,6 +739,10 @@
                 <span>簧 + 杆总轮端 <small>RATE</small></span>
                 <strong><span id="rearWheelRateValue">23.0</span> N/mm</strong>
               </div>
+              <div class="axle-details-wide">
+                <span>纵向 / 侧向力 <small>FX / FY</small></span>
+                <strong><span id="rearLongForceValue">+0.00</span> / <span id="rearLatForceValue">4.55</span> kN</strong>
+              </div>
             </div>
           </article>
         </div>
@@ -620,7 +753,7 @@
           <div class="source-summary">
             <span class="eyebrow">MODEL / PROVENANCE</span>
             <span class="source-summary-title">数据来源、公式与模型边界</span>
-            <span class="source-summary-hint">AC解包 · 弹簧/ARB 为轮端等效</span>
+            <span class="source-summary-hint">AC解包 · 轮胎 μ(Fz) · 弹簧/ARB 为轮端等效</span>
           </div>
           <span class="summary-toggle" aria-hidden="true"></span>
         </summary>
@@ -636,7 +769,9 @@
               <div><dt>质心高度</dt><dd>0.423 m <small>RADIUS 0.3126 − BASEY (−0.110)</small></dd></div>
               <div><dt>弹簧率 F / R</dt><dd>23.0 / 18.0 N/mm <small>SPRING_RATE 23000 / 18000 N/m</small></dd></div>
               <div><dt>ARB F / R</dt><dd>39.0 / 5.0 N/mm <small>[ARB] 39000 / 5000 N/m · CSP 轮端约定</small></dd></div>
-              <div><dt>轮胎</dt><dd>Semislicks <small>FZ0 2494 N · DY_REF 1.28 · 半径 0.3126 m</small></dd></div>
+              <div><dt>轮胎胶料</dt><dd>ECO / Street / Semislicks <small>[ECO] / [STREET] / [SEMISLICKS] · 默认 INDEX = 2</small></dd></div>
+              <div><dt>默认胶料参数</dt><dd>μ_ref 1.28 · FZ0 2494 N · LS_EXPY 0.8119 <small>Semislicks [FRONT_2]/[REAR_2] · 半径 0.3126 m</small></dd></div>
+              <div><dt>轮胎宽度 F / R</dt><dd>215 / 215 mm <small>WIDTH；不进入本车所用 μ(Fz) 幂律</small></dd></div>
               <div><dt>轮胎垂向刚度</dt><dd>262,593 N/m <small>仅用于 3D 轮胎压缩视觉</small></dd></div>
             </dl>
             <code class="source-path">…\assettocorsa\content\cars\ks_toyota_gt86\data.acd</code>
@@ -645,18 +780,26 @@
           <div class="source-block">
             <h4>机制 <span>MECHANISM</span></h4>
             <p class="model-copy">
-              弹簧与 ARB 先合并为各轴轮端刚度，再形成前后侧倾刚度分配。横向载荷转移按该分配进入左右轮；每个轴的总抓地力随载荷转移近似线性下降。利用率决定哪一轴先饱和。
+              弹簧与 ARB 先合并为各轴轮端刚度，再形成前后侧倾刚度分配，把横向载荷转移分到左右轮。纵向 G 通过质心高度与轴距在前后轴之间搬移垂直载荷；驱动力全部分配给后轴，制动力近似按前 60% / 后 40% 分配。每只轮胎用 AC 的载荷敏感幂律，从实际 Fz 得到 μ 与 Fy,max；把每轴侧向与纵向需求合成为合力，与该轴总抓地力比较即得联合利用率。
             </p>
             <pre class="formula-block"><code>Kφ = (k_spring + k_ARB) · t² / 2
 share_F = Kφ_F / (Kφ_F + Kφ_R)
-ΔFz_F = share_F · m · a_y · h / t_F
-F_grip = μ · Fz_axle − k_loss · |ΔFz|
-U = F_demand / F_grip</code></pre>
+ΔFz_lat,F = share_F · m · a_y · h / t_F
+ΔFz_long  = m · a_x · h / L
+k = 1 − LS_EXPY
+μ(Fz) = μ_ref · (Fz / FZ0)^(−k)
+Fy,max = μ(Fz) · Fz
+Fgrip,axle = Σ Fy,max
+F_res,axle = √(Fy,demand² + Fx,demand²)
+U = F_res,axle / Fgrip,axle</code></pre>
             <h4>边界与假设 <span>LIMITS</span></h4>
             <ul class="assumption-list">
-              <li>稳态、纯侧向、平地；无空气动力学、差速器锁止、瞬态/转向输入。</li>
-              <li>载荷转移抓地损失使用可调等效系数 <b>k</b>，不是 AC 的逐点 Pacejka 轮胎复刻。</li>
-              <li>3D 底盘按 AC 的 <b>STRUT / DWB</b> 架构、GT86 轴距/轮距与轮端刚度做<b>简化机构示意</b> </li>
+              <li>稳态、平地；G-G 输入允许侧向 + 纵向组合；不含瞬态、差速器锁止和空气动力学。</li>
+              <li><b>仅模拟底盘重心 / 载荷转移与载荷敏感 μ(Fz)</b>；忽略轮胎滑移角、滑移率、侧偏刚度及轮胎松弛对 μ 的影响。</li>
+              <li>轮胎曲线使用 AC 解包的 <b>FZ0 / DY_REF / LS_EXPY</b>；WIDTH 不进入 μ(Fz)。未建模 Camber / Toe / 温度 / 压力。</li>
+              <li>AC 胶料参数只读；自定义模式可改 <b>μ_ref / k</b>，<b>FZ0</b> 继承上一次 AC 胶料。</li>
+              <li><b>驱动力 100% 后轴；制动力按固定 60% 前 / 40% 后</b> 近似。纵向力分配与滑移无关，但仍决定每轴 Fx 和联合利用率。未建模 EBD 与制动偏置变化。</li>
+              <li>3D 底盘按 AC 的 <b>STRUT / DWB</b> 架构、GT86 轴距/轮距与轮端刚度做<b>简化机构示意</b>。</li>
               <li>ARB 的 AC 原文件注释与 CSP 文档在单位表述上存在差异；按等效轮端 N/m 读取。</li>
             </ul>
           </div>

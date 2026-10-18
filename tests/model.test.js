@@ -23,7 +23,7 @@ function approx(actual, expected, tolerance, label) {
   );
 }
 
-test('GT86 defaults reproduce the source geometry and near-understeer balance', () => {
+test('GT86 defaults reproduce the source geometry and understeer balance', () => {
   const r = model.calculate(model.cloneBaseState());
   assert.equal(r.state.massKg, 1285);
   approx(r.state.wheelbaseM, 2.570, 1e-12, 'wheelbase');
@@ -33,15 +33,15 @@ test('GT86 defaults reproduce the source geometry and near-understeer balance', 
   approx(r.staticLoads.rearAxle, 5355.66, 1, 'rear static axle load');
   approx(r.rollStiffness.frontShare, 0.7242, 0.0005, 'front roll share');
   approx(r.rollAngleDeg, 2.62, 0.03, 'roll angle');
-  approx(r.grip.front, 8628, 5, 'front grip');
-  approx(r.grip.rear, 6612, 5, 'rear grip');
-  approx(r.deltaPP, 2.54, 0.05, 'balance delta');
+  approx(r.grip.front, 8586.0, 1, 'front axle grip');
+  approx(r.grip.rear, 6752.3, 1, 'rear axle grip');
+  approx(r.deltaPP, 4.314, 0.01, 'balance delta');
   approx(r.loadTransferRatio.front, 0.2977, 0.001, 'front load-transfer ratio');
   approx(r.loadTransferRatio.rear, 0.1514, 0.001, 'rear load-transfer ratio');
   assert.equal(r.balance, 'understeer');
 });
 
-test('front and rear tyre loads add back to their axle static loads when both tyres are on the ground', () => {
+test('front and rear tyre loads add back to their axle loads when both tyres are on the ground', () => {
   const r = model.calculate(model.cloneBaseState());
   approx(
     r.wheelLoads.frontOuter + r.wheelLoads.frontInner,
@@ -63,6 +63,158 @@ test('front and rear tyre loads add back to their axle static loads when both ty
   );
 });
 
+test('each tyre follows the AC load-sensitive power law at its actual Fz', () => {
+  const r = model.calculate(model.cloneBaseState());
+  const s = r.state;
+
+  function expectedMu(load) {
+    return s.tireMuRef * Math.pow(load / s.tireFz0N, -s.tireLoadSensitivityK);
+  }
+
+  const outer = r.tyreGrip.frontOuter;
+  const inner = r.tyreGrip.rearInner;
+  approx(outer.mu, expectedMu(outer.load), 1e-12, 'outer tyre mu');
+  approx(inner.mu, expectedMu(inner.load), 1e-12, 'inner tyre mu');
+  approx(outer.capacity, outer.mu * outer.load, 1e-9, 'outer tyre capacity');
+  approx(inner.capacity, inner.mu * inner.load, 1e-9, 'inner tyre capacity');
+  approx(
+    r.grip.front,
+    r.tyreGrip.frontOuter.capacity + r.tyreGrip.frontInner.capacity,
+    1e-9,
+    'front grip sums the two tyre capacities'
+  );
+  approx(
+    r.grip.rear,
+    r.tyreGrip.rearOuter.capacity + r.tyreGrip.rearInner.capacity,
+    1e-9,
+    'rear grip sums the two tyre capacities'
+  );
+});
+
+test('the three AC compounds expose their FZ0, DY_REF, LS_EXPY and derived k', () => {
+  const compounds = model.DATA.tyreCompounds;
+  assert.equal(model.DATA.defaultCompoundId, 'semislicks');
+  approx(compounds.eco.muRef, 1.215, 1e-12, 'ECO mu_ref');
+  approx(compounds.eco.fz0N, 2274, 1e-12, 'ECO FZ0');
+  approx(compounds.eco.k, 1 - 0.7227, 1e-12, 'ECO k');
+  approx(compounds.street.muRef, 1.23, 1e-12, 'Street mu_ref');
+  approx(compounds.street.k, 1 - 0.8227, 1e-12, 'Street k');
+  approx(compounds.semislicks.muRef, 1.28, 1e-12, 'Semislicks mu_ref');
+  approx(compounds.semislicks.fz0N, 2494, 1e-12, 'Semislicks FZ0');
+  approx(compounds.semislicks.k, 1 - 0.8119, 1e-12, 'Semislicks k');
+
+  const semislicks = model.BASE_STATE;
+  approx(semislicks.tireMuRef, compounds.semislicks.muRef, 1e-12, 'base mu_ref');
+  approx(semislicks.tireFz0N, compounds.semislicks.fz0N, 1e-12, 'base FZ0');
+  approx(semislicks.tireLoadSensitivityK, compounds.semislicks.k, 1e-12, 'base k');
+
+  const eco = model.calculate({
+    ...model.BASE_STATE,
+    tireMuRef: compounds.eco.muRef,
+    tireFz0N: compounds.eco.fz0N,
+    tireLoadSensitivityK: compounds.eco.k
+  });
+  assert.ok(eco.grip.front < model.calculate(model.BASE_STATE).grip.front);
+});
+
+test('longitudinal G moves normal load between the axles and is allocated to drive/brake axes', () => {
+  const base = model.cloneBaseState();
+  const braking = model.calculate({
+    ...base,
+    lateralG: 0.4,
+    longitudinalG: -0.5
+  });
+  const totalLong = braking.mass * (-0.5 * model.G);
+  approx(
+    braking.longitudinal.transfer,
+    braking.mass * (-0.5 * model.G) * base.cgHeightM / base.wheelbaseM,
+    1e-9,
+    'longitudinal transfer'
+  );
+  approx(
+    braking.axleLoads.front,
+    braking.staticLoads.frontAxle - braking.longitudinal.transfer,
+    0.01,
+    'front axle gains load under braking'
+  );
+  approx(
+    braking.axleLoads.rear,
+    braking.staticLoads.rearAxle + braking.longitudinal.transfer,
+    0.01,
+    'rear axle loses load under braking'
+  );
+  approx(
+    braking.wheelLoads.frontOuter + braking.wheelLoads.frontInner,
+    braking.axleLoads.front,
+    0.01,
+    'front wheel loads sum to the transferred axle load'
+  );
+  approx(
+    braking.longitudinalDemand.front,
+    totalLong * 0.6,
+    1e-9,
+    '60 % front brake bias'
+  );
+  approx(
+    braking.longitudinalDemand.rear,
+    totalLong * 0.4,
+    1e-9,
+    '40 % rear brake bias'
+  );
+
+  const accelerating = model.calculate({
+    ...base,
+    lateralG: 0.4,
+    longitudinalG: 0.3
+  });
+  approx(accelerating.longitudinalDemand.front, 0, 1e-9, 'RWD front drive force');
+  approx(
+    accelerating.longitudinalDemand.rear,
+    accelerating.mass * 0.3 * model.G,
+    1e-9,
+    'RWD rear drive force'
+  );
+});
+
+test('combined lateral + longitudinal demand moves the balance away from the lateral-only case', () => {
+  const base = model.cloneBaseState();
+  const lateralOnly = model.calculate(base);
+  const powerOn = model.calculate({
+    ...base,
+    longitudinalG: 0.3
+  });
+  const trailBraking = model.calculate({
+    ...base,
+    longitudinalG: -0.5
+  });
+
+  assert.equal(lateralOnly.balance, 'understeer');
+  assert.equal(powerOn.balance, 'oversteer');
+  assert.equal(trailBraking.balance, 'oversteer');
+  assert.ok(powerOn.deltaPP < lateralOnly.deltaPP);
+  assert.ok(trailBraking.deltaPP < lateralOnly.deltaPP);
+  assert.ok(powerOn.utilisation.rear > powerOn.utilisation.front);
+  assert.ok(trailBraking.utilisation.rear > trailBraking.utilisation.front);
+  approx(
+    powerOn.demand.rear,
+    Math.hypot(
+      powerOn.lateralDemand.rear,
+      powerOn.longitudinalDemand.rear
+    ),
+    1e-9,
+    'rear resultant demand'
+  );
+  approx(
+    powerOn.demand.total,
+    Math.hypot(
+      powerOn.totalLateralForce,
+      powerOn.totalLongitudinalForce
+    ),
+    1e-9,
+    'total resultant demand'
+  );
+});
+
 test('stiffening the front axle lowers front grip and moves balance toward understeer', () => {
   const base = model.cloneBaseState();
   const soft = model.calculate({ ...base, arbFrontNmm: 5 });
@@ -72,32 +224,63 @@ test('stiffening the front axle lowers front grip and moves balance toward under
   assert.ok(stiff.grip.rear > soft.grip.rear);
   assert.ok(stiff.deltaPP > soft.deltaPP);
   assert.ok(stiff.rollStiffness.frontShare > soft.rollStiffness.frontShare);
+  assert.equal(stiff.balance, 'understeer');
 });
 
-test('stiffening the rear axle can move the calibrated model into oversteer', () => {
+test('rear stiffness reduces understeer at stock weight and can cross into oversteer when front bias is lower', () => {
   const base = model.cloneBaseState();
+  const stock = model.calculate(base);
   const rearStiff = model.calculate({ ...base, arbRearNmm: 40 });
-  assert.equal(rearStiff.balance, 'oversteer');
-  assert.ok(rearStiff.deltaPP < 0);
-  assert.ok(rearStiff.grip.rear < model.calculate(base).grip.rear);
+  assert.equal(rearStiff.balance, 'understeer');
+  assert.ok(rearStiff.deltaPP < stock.deltaPP);
+  assert.ok(rearStiff.grip.rear < stock.grip.rear);
+
+  const lessFrontBiased = model.calculate({
+    ...base,
+    frontWeight: 0.45,
+    arbFrontNmm: 0,
+    arbRearNmm: 60
+  });
+  assert.equal(lessFrontBiased.balance, 'oversteer');
+  assert.ok(lessFrontBiased.deltaPP < 0);
 });
 
-test('without load transfer grip loss, axle stiffness distribution cannot change balance', () => {
+test('with zero tyre load sensitivity, axle stiffness distribution cannot change balance', () => {
   const base = model.cloneBaseState();
-  const a = model.calculate({ ...base, loadTransferLoss: 0, arbFrontNmm: 0, arbRearNmm: 60 });
-  const b = model.calculate({ ...base, loadTransferLoss: 0, arbFrontNmm: 80, arbRearNmm: 0 });
-  approx(a.deltaPP, 0, 1e-9, 'soft front delta');
-  approx(b.deltaPP, 0, 1e-9, 'stiff front delta');
+  const a = model.calculate({
+    ...base,
+    tireLoadSensitivityK: 0,
+    arbFrontNmm: 0,
+    arbRearNmm: 60
+  });
+  const b = model.calculate({
+    ...base,
+    tireLoadSensitivityK: 0,
+    arbFrontNmm: 80,
+    arbRearNmm: 0
+  });
+  approx(a.deltaPP, 0, 1e-9, 'soft-front delta');
+  approx(b.deltaPP, 0, 1e-9, 'stiff-front delta');
+  assert.equal(a.balance, 'neutral');
+  assert.equal(b.balance, 'neutral');
+  assert.ok(a.warnings.some((warning) => warning.code === 'low-load-sensitivity'));
 });
 
-test('the equal-utilisation solver finds a front ARB setting in range', () => {
-  const base = model.cloneBaseState();
-  const solution = model.solveNeutralFrontArb(base);
-  assert.equal(solution.achieved, true);
-  assert.ok(solution.value >= 0 && solution.value <= 80);
-  approx(solution.deltaPP, 0, 0.05, 'solver residual');
-  assert.notEqual(solution.balance, 'understeer');
-  assert.notEqual(solution.balance, 'oversteer');
+test('equal-utilisation solver reports frontier limits honestly', () => {
+  const stockSolution = model.solveNeutralFrontArb(model.cloneBaseState());
+  assert.equal(stockSolution.achieved, false);
+  assert.equal(stockSolution.value, 0);
+  assert.ok(stockSolution.deltaPP > 0);
+  assert.equal(stockSolution.balance, 'understeer');
+
+  const balancedSolution = model.solveNeutralFrontArb({
+    ...model.cloneBaseState(),
+    frontWeight: 0.5
+  });
+  assert.equal(balancedSolution.achieved, true);
+  assert.ok(balancedSolution.value >= 0 && balancedSolution.value <= 80);
+  approx(balancedSolution.deltaPP, 0, 0.05, 'solver residual');
+  assert.equal(balancedSolution.balance, 'neutral');
 });
 
 test('wheel lift is clamped at zero and raises a warning', () => {

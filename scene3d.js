@@ -205,8 +205,10 @@
 
     this.visual = {
       roll: 0,
+      pitch: 0,
       steer: 0,
       lateralG: 0.85,
+      longitudinalG: 0,
       loads: {
         FL: 0,
         FR: 0,
@@ -217,8 +219,10 @@
 
     this.target = {
       roll: 0,
+      pitch: 0,
       steer: 0,
       lateralG: 0.85,
+      longitudinalG: 0,
       loads: {
         FL: 0,
         FR: 0,
@@ -933,9 +937,19 @@
     this.cogGroundRing.position.x = this.cogWorld.x;
     this.cogGroundRing.position.z = this.cogWorld.z;
 
-    this.currentGArrowLength = 0.58 + this.visual.lateralG * 0.85;
+    var lateralG = this.visual.lateralG;
+    var longitudinalG = this.visual.longitudinalG;
+    var magnitude = Math.hypot(lateralG, longitudinalG);
+
+    if (magnitude > 1e-5) {
+      // G-force arrow points along the inertial force: outside of the turn and
+      // rearward under acceleration.
+      this.gDirection.set(lateralG / magnitude, 0, -longitudinalG / magnitude);
+      this.gArrow.setDirection(this.gDirection);
+    }
+
+    this.currentGArrowLength = 0.58 + magnitude * 0.85;
     this.gArrow.position.set(this.cogWorld.x, this.cogWorld.y + 0.015, this.cogWorld.z);
-    this.gArrow.setDirection(this.gDirection);
     this.gArrow.setLength(
       this.currentGArrowLength,
       clamp(this.currentGArrowLength * 0.15, 0.16, 0.28),
@@ -1018,8 +1032,10 @@
     this.target.loads.RL = loads.rearInner;
     this.target.loads.RR = loads.rearOuter;
     this.target.roll = clamp(result.rollAngleRad, 0, 0.16);
+    this.target.pitch = clamp(-result.state.longitudinalG * 0.022, -0.035, 0.035);
     this.target.steer = clamp(result.state.lateralG * 0.105, 0, 0.17);
     this.target.lateralG = result.state.lateralG;
+    this.target.longitudinalG = result.state.longitudinalG;
 
     var cogHeight = clamp(result.state.cgHeightM, 0.2, 0.7);
     var cogZ = (result.state.frontWeight - 0.5) * result.state.wheelbaseM;
@@ -1145,8 +1161,10 @@
     }
 
     if (this.gLabel) {
-      TMP_A.copy(this.cogWorld);
-      TMP_A.x -= this.currentGArrowLength;
+      TMP_A.copy(this.cogWorld).addScaledVector(
+        this.gDirection,
+        this.currentGArrowLength * 0.74
+      );
       TMP_A.y += 0.12;
       var gPosition = projectAnchor(TMP_A);
       var gVisible = gPosition.visible &&
@@ -1162,15 +1180,24 @@
     var self = this;
 
     this.visual.roll = damp(this.visual.roll, this.target.roll, 8.5, dt);
+    this.visual.pitch = damp(this.visual.pitch, this.target.pitch, 8.5, dt);
     this.visual.steer = damp(this.visual.steer, this.target.steer, 7.5, dt);
     this.visual.lateralG = damp(this.visual.lateralG, this.target.lateralG, 7, dt);
+    this.visual.longitudinalG = damp(
+      this.visual.longitudinalG,
+      this.target.longitudinalG,
+      7,
+      dt
+    );
 
     ['FL', 'FR', 'RL', 'RR'].forEach(function (wheelId) {
       self.visual.loads[wheelId] = damp(self.visual.loads[wheelId], self.target.loads[wheelId], 8, dt);
     });
 
     // Chassis roll: a left-hand corner rolls the body toward the outside (+X).
+    // Positive rotation.x pitches the nose down, which is the braking case.
     this.body.rotation.z = -this.visual.roll;
+    this.body.rotation.x = this.visual.pitch;
     this.body.position.y = DIM.rollCenterY;
 
     ['FL', 'FR', 'RL', 'RR'].forEach(function (wheelId) {

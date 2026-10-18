@@ -18,21 +18,68 @@
    *                     SPRING_RATE = 23000 / 18000 N/m (wheel rate)
    *                     ARB FRONT/REAR = 39000 / 5000 N/m (wheel-rate equivalent)
    *                     BASEY = -0.110 m (both axles)
-   *   tyres.ini         default compound index 2 = Semislicks
-   *                     RADIUS = 0.3126 m, FZ0 = 2494 N,
-   *                     DY_REF = 1.28, LS_EXPY = 0.8119,
-   *                     RATE = 262593 N/m
+   *   tyres.ini         RADIUS = 0.3126 m, RATE = 262593 N/m
+   *                     default compound index 2 = Semislicks
+   *                     front/rear use the same compound parameters.
    *
-   * The UI uses a transparent, first-order axle grip-loss model. It is a
-   * mechanism demonstrator, not a full reconstruction of AC's Pacejka model.
-   * The load-transfer loss coefficient is exposed and adjustable.
+   * AC load-sensitive tyre curve (no DY_CURVE is present in this car):
+   *   k = 1 - LS_EXPY
+   *   mu(Fz) = DY_REF * (Fz / FZ0)^(-k)
+   *   Fy_max = mu(Fz) * Fz
+   * The curve is evaluated per tyre at its actual inner/outer vertical load.
+   * When DY_CURVE is present, AC uses that lookup instead of this power law.
+   *
+   * Two-dimensional G-G extension:
+   * - Longitudinal acceleration moves normal load between axles via m*ax*h/L.
+   * - RWD drive torque is assigned to the rear axle; braking uses a fixed
+   *   60/40 front/rear bias approximation. This is not a slip model: the
+   *   allocation still sets each axle's Fx and therefore its combined
+   *   utilisation, so it is kept as an explicit modelling assumption.
+   * - Lateral and longitudinal demands are combined with a friction circle.
+   * - Slip angle and slip ratio are NOT modelled; mu is load-sensitive only.
    */
+  var TYRE_COMPOUNDS = {
+    eco: {
+      id: 'eco',
+      name: 'ECO',
+      short: 'ECO',
+      section: '[ECO] FRONT / REAR',
+      muRef: 1.215,
+      fz0N: 2274,
+      lsExpy: 0.7227,
+      k: 1 - 0.7227
+    },
+    street: {
+      id: 'street',
+      name: 'Street',
+      short: 'STREET',
+      section: '[STREET] FRONT_1 / REAR_1',
+      muRef: 1.23,
+      fz0N: 2274,
+      lsExpy: 0.8227,
+      k: 1 - 0.8227
+    },
+    semislicks: {
+      id: 'semislicks',
+      name: 'Semislicks',
+      short: 'SEMISLICKS',
+      section: '[SEMISLICKS] FRONT_2 / REAR_2',
+      muRef: 1.28,
+      fz0N: 2494,
+      lsExpy: 0.8119,
+      k: 1 - 0.8119
+    }
+  };
+
   var DATA = Object.freeze({
     carId: 'ks_toyota_gt86',
     carName: 'Toyota GT86 / ZN6',
     sourcePath: 'assettocorsa/content/cars/ks_toyota_gt86',
     sourceFile: 'data.acd',
+    compounds: 'ECO / Street / Semislicks',
     compound: 'Semislicks',
+    defaultCompoundId: 'semislicks',
+    tyreCompounds: TYRE_COMPOUNDS,
     totalMassKg: 1285,
     wheelbaseM: 2.570,
     cgLocationFront: 0.575,
@@ -66,8 +113,10 @@
     arbFrontNmm: DATA.arbFrontRaw / 1000,
     arbRearNmm: DATA.arbRearRaw / 1000,
     tireMuRef: DATA.tyreDyRef,
-    loadTransferLoss: 0.30,
-    lateralG: 0.85
+    tireFz0N: DATA.tyreFz0N,
+    tireLoadSensitivityK: 1 - DATA.tyreLsExpy,
+    lateralG: 0.85,
+    longitudinalG: 0
   });
 
   var LIMITS = Object.freeze({
@@ -82,12 +131,18 @@
     arbFrontNmm: [0, 80],
     arbRearNmm: [0, 60],
     tireMuRef: [0.60, 1.80],
-    loadTransferLoss: [0, 0.60],
-    lateralG: [0.20, 1.40]
+    tireFz0N: [1500, 4000],
+    tireLoadSensitivityK: [0, 0.80],
+    lateralG: [0.20, 1.40],
+    longitudinalG: [-1.20, 0.90]
   });
 
   var NEUTRAL_BAND_PP = 0.35;
   var REFERENCE_SPEED_KMH = 100;
+  // GT86 is rear-drive. Under braking the fixed brake bias is approximated
+  // as 60 % front / 40 % rear because brake.ini is not part of this model.
+  var BRAKE_BIAS_FRONT = 0.60;
+  var DRIVE_BIAS_REAR = 1.0;
 
   function clamp(value, min, max) {
     return Math.min(max, Math.max(min, value));
@@ -116,12 +171,21 @@
 
     var mass = s.massKg;
     var ay = s.lateralG * G;
+    var ax = s.longitudinalG * G;
     var totalLateralForce = mass * ay;
+    var totalLongitudinalForce = mass * ax;
 
     var frontStaticAxle = mass * G * s.frontWeight;
     var rearStaticAxle = mass * G * (1 - s.frontWeight);
     var frontStaticWheel = frontStaticAxle / 2;
     var rearStaticWheel = rearStaticAxle / 2;
+
+    // Positive ax (forward acceleration) shifts normal load rearward.
+    var longitudinalTransfer = mass * ax * s.cgHeightM / s.wheelbaseM;
+    var frontAxleLoadRaw = frontStaticAxle - longitudinalTransfer;
+    var rearAxleLoadRaw = rearStaticAxle + longitudinalTransfer;
+    var frontAxleLoad = Math.max(0, frontAxleLoadRaw);
+    var rearAxleLoad = Math.max(0, rearAxleLoadRaw);
 
     var frontWheelRate = s.springFrontNmm + s.arbFrontNmm;
     var rearWheelRate = s.springRearNmm + s.arbRearNmm;
@@ -140,29 +204,60 @@
     var frontLoadTransfer = frontRollShare * rollMoment / s.trackFrontM;
     var rearLoadTransfer = (1 - frontRollShare) * rollMoment / s.trackRearM;
 
-    var frontOuterLoadRaw = frontStaticWheel + frontLoadTransfer / 2;
-    var frontInnerLoadRaw = frontStaticWheel - frontLoadTransfer / 2;
-    var rearOuterLoadRaw = rearStaticWheel + rearLoadTransfer / 2;
-    var rearInnerLoadRaw = rearStaticWheel - rearLoadTransfer / 2;
+    var frontOuterLoadRaw = frontAxleLoad / 2 + frontLoadTransfer / 2;
+    var frontInnerLoadRaw = frontAxleLoad / 2 - frontLoadTransfer / 2;
+    var rearOuterLoadRaw = rearAxleLoad / 2 + rearLoadTransfer / 2;
+    var rearInnerLoadRaw = rearAxleLoad / 2 - rearLoadTransfer / 2;
 
     var frontInnerLoad = Math.max(0, frontInnerLoadRaw);
     var rearInnerLoad = Math.max(0, rearInnerLoadRaw);
 
-    // First-order tyre-load-sensitive axle grip approximation.
-    // Base grip is mu * axle normal load. Unequal left/right loading reduces it
-    // by loadTransferLoss * (left-right load difference).
-    var gripLossFront = s.loadTransferLoss * frontLoadTransfer;
-    var gripLossRear = s.loadTransferLoss * rearLoadTransfer;
-    var frontGrip = Math.max(0, s.tireMuRef * frontStaticAxle - gripLossFront);
-    var rearGrip = Math.max(0, s.tireMuRef * rearStaticAxle - gripLossRear);
+    // AC load-sensitive tyre curve, evaluated per tyre at its actual Fz.
+    // k = 1 - LS_EXPY; mu(Fz) = mu_ref * (Fz / FZ0)^(-k).
+    // Fy_max = mu(Fz) * Fz.
+    function tyreAtLoad(load) {
+      if (!(load > 0)) {
+        return { load: 0, mu: 0, capacity: 0 };
+      }
+      var mu = s.tireMuRef * Math.pow(load / s.tireFz0N, -s.tireLoadSensitivityK);
+      return { load, mu, capacity: mu * load };
+    }
 
-    var frontDemand = totalLateralForce * s.frontWeight;
-    var rearDemand = totalLateralForce * (1 - s.frontWeight);
+    var tyreGrip = {
+      frontOuter: tyreAtLoad(Math.max(0, frontOuterLoadRaw)),
+      frontInner: tyreAtLoad(frontInnerLoad),
+      rearOuter: tyreAtLoad(Math.max(0, rearOuterLoadRaw)),
+      rearInner: tyreAtLoad(rearInnerLoad)
+    };
 
-    var frontUtil = frontGrip > 0 ? frontDemand / frontGrip : Infinity;
-    var rearUtil = rearGrip > 0 ? rearDemand / rearGrip : Infinity;
+    var frontGrip = tyreGrip.frontOuter.capacity + tyreGrip.frontInner.capacity;
+    var rearGrip = tyreGrip.rearOuter.capacity + tyreGrip.rearInner.capacity;
+
+    var frontLateralDemand = totalLateralForce * s.frontWeight;
+    var rearLateralDemand = totalLateralForce * (1 - s.frontWeight);
+
+    // Longitudinal force allocation: RWD drive goes fully to the rear; braking
+    // uses the fixed 60/40 front/rear bias approximation documented above.
+    var frontLongitudinalDemand;
+    var rearLongitudinalDemand;
+    if (totalLongitudinalForce >= 0) {
+      frontLongitudinalDemand = totalLongitudinalForce * (1 - DRIVE_BIAS_REAR);
+      rearLongitudinalDemand = totalLongitudinalForce * DRIVE_BIAS_REAR;
+    } else {
+      frontLongitudinalDemand = totalLongitudinalForce * BRAKE_BIAS_FRONT;
+      rearLongitudinalDemand = totalLongitudinalForce * (1 - BRAKE_BIAS_FRONT);
+    }
+
+    // The friction circle makes the resultant demand the correct utilisation
+    // numerator: U = sqrt((Fy/Fc)^2 + (Fx/Fc)^2) = |F| / Fc.
+    var frontDemand = Math.hypot(frontLateralDemand, frontLongitudinalDemand);
+    var rearDemand = Math.hypot(rearLateralDemand, rearLongitudinalDemand);
+    var totalDemand = Math.hypot(totalLateralForce, totalLongitudinalForce);
+
     var totalGrip = frontGrip + rearGrip;
-    var totalUtil = totalGrip > 0 ? totalLateralForce / totalGrip : Infinity;
+    var frontUtil = frontGrip > 0 ? frontDemand / frontGrip : (frontDemand > 0 ? Infinity : 0);
+    var rearUtil = rearGrip > 0 ? rearDemand / rearGrip : (rearDemand > 0 ? Infinity : 0);
+    var totalUtil = totalGrip > 0 ? totalDemand / totalGrip : (totalDemand > 0 ? Infinity : 0);
 
     var deltaPP = (frontUtil - rearUtil) * 100;
     var balance = 'neutral';
@@ -171,7 +266,7 @@
 
     var frontMargin = frontGrip - frontDemand;
     var rearMargin = rearGrip - rearDemand;
-    var totalMargin = totalGrip - totalLateralForce;
+    var totalMargin = totalGrip - totalDemand;
 
     var frontWheelLift = frontInnerLoadRaw <= 1e-6;
     var rearWheelLift = rearInnerLoadRaw <= 1e-6;
@@ -191,12 +286,23 @@
         detail: lifted.join('、') + '轴内侧轮已离开地面；线性悬架模型超出有效范围。'
       });
     }
-    if (totalLateralForce > totalGrip) {
+    if (frontAxleLoadRaw <= 1e-6 || rearAxleLoadRaw <= 1e-6) {
+      var unloaded = [];
+      if (frontAxleLoadRaw <= 1e-6) unloaded.push('前');
+      if (rearAxleLoadRaw <= 1e-6) unloaded.push('后');
+      warnings.push({
+        code: 'axle-unloaded',
+        severity: 'danger',
+        title: '轴荷转移超出模型范围',
+        detail: unloaded.join('、') + '轴垂直载荷已降到零；静态轴荷模型无法继续分配纵向载荷转移。'
+      });
+    }
+    if (totalDemand > totalGrip) {
       warnings.push({
         code: 'total-grip',
         severity: 'danger',
-        title: '总抓地力不足',
-        detail: '当前设定的前后轴抓地力之和低于该侧向加速度需求。'
+        title: '联合抓地力不足',
+        detail: '当前侧向与纵向合力需求已超过前后轴抓地力之和。'
       });
     } else if (frontUtil >= 1 || rearUtil >= 1) {
       var saturated = frontUtil >= 1 ? '前轴' : '后轴';
@@ -204,15 +310,15 @@
         code: 'axle-limit',
         severity: 'warning',
         title: saturated + '达到极限',
-        detail: saturated + '抓地力利用率已达到 100%，当前侧向加速度不可持续。'
+        detail: saturated + '的侧向+纵向联合利用率已达到 100%，当前 G 组合不可持续。'
       });
     }
-    if (s.loadTransferLoss < 0.02) {
+    if (s.tireLoadSensitivityK < 0.02) {
       warnings.push({
         code: 'low-load-sensitivity',
         severity: 'info',
-        title: '载荷敏感度接近零',
-        detail: '轮胎抓地力几乎不随载荷转移下降，弹簧/ARB 的平衡作用会非常弱。'
+        title: '轮胎载荷敏感度接近零',
+        detail: '当前 k≈0，μ(Fz) 近似为常数；弹簧/ARB 造成的轴荷分配几乎不会改变轴总抓地力。'
       });
     }
 
@@ -226,13 +332,29 @@
     return {
       state: s,
       ay,
+      ax,
       totalLateralForce,
+      totalLongitudinalForce,
       mass,
       staticLoads: {
         frontAxle: frontStaticAxle,
         rearAxle: rearStaticAxle,
         frontWheel: frontStaticWheel,
         rearWheel: rearStaticWheel
+      },
+      axleLoads: {
+        front: frontAxleLoad,
+        rear: rearAxleLoad,
+        frontRaw: frontAxleLoadRaw,
+        rearRaw: rearAxleLoadRaw,
+        frontDelta: -longitudinalTransfer,
+        rearDelta: longitudinalTransfer
+      },
+      longitudinal: {
+        transfer: longitudinalTransfer,
+        rearShare: rearAxleLoad > 0 ? rearAxleLoad / (frontAxleLoad + rearAxleLoad) : 0.5,
+        driveBiasRear: DRIVE_BIAS_REAR,
+        brakeBiasFront: BRAKE_BIAS_FRONT
       },
       springRates: {
         frontNmm: frontWheelRate,
@@ -253,10 +375,7 @@
       rollAngleDeg,
       frontLoadTransfer,
       rearLoadTransfer,
-      gripLoss: {
-        front: gripLossFront,
-        rear: gripLossRear
-      },
+      tyreGrip,
       wheelLoads: {
         frontOuter: frontOuterLoadRaw,
         frontInner: frontInnerLoad,
@@ -276,10 +395,20 @@
         rear: rearGrip,
         total: totalGrip
       },
+      lateralDemand: {
+        front: frontLateralDemand,
+        rear: rearLateralDemand,
+        total: totalLateralForce
+      },
+      longitudinalDemand: {
+        front: frontLongitudinalDemand,
+        rear: rearLongitudinalDemand,
+        total: totalLongitudinalForce
+      },
       demand: {
         front: frontDemand,
         rear: rearDemand,
-        total: totalLateralForce
+        total: totalDemand
       },
       margin: {
         front: frontMargin,
@@ -307,11 +436,12 @@
         rear: rearWheelLift,
         any: frontWheelLift || rearWheelLift
       },
-      limitExceeded: totalLateralForce > totalGrip,
+      limitExceeded: totalDemand > totalGrip,
       axleLimitReached: frontUtil >= 1 || rearUtil >= 1,
       warnings,
       referenceSpeedKmh: REFERENCE_SPEED_KMH,
-      cornerRadiusM
+      cornerRadiusM,
+      gVectorMagnitude: Math.hypot(s.lateralG, s.longitudinalG)
     };
   }
 
