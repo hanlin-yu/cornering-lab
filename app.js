@@ -432,7 +432,6 @@
     setText('stockPresetLabel', currentCar.shortName + ' 原厂');
     setText('frontSuspensionLabel', currentCar.frontSuspension.name);
     setText('rearSuspensionLabel', currentCar.rearSuspension.name);
-    document.title = 'Cornering Lab · ' + currentCar.name;
 
     var carSelect = $('carSelect');
     if (carSelect && carSelect.value !== currentCarId) {
