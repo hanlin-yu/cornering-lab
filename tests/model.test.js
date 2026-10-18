@@ -112,7 +112,10 @@ test('the three AC compounds expose their FZ0, DY_REF, LS_EXPY and derived k', (
     ...model.BASE_STATE,
     tireMuRef: compounds.eco.muRef,
     tireFz0N: compounds.eco.fz0N,
-    tireLoadSensitivityK: compounds.eco.k
+    tireLoadSensitivityK: compounds.eco.k,
+    tireRearMuRef: compounds.eco.muRef,
+    tireRearFz0N: compounds.eco.fz0N,
+    tireRearLoadSensitivityK: compounds.eco.k
   });
   assert.ok(eco.grip.front < model.calculate(model.BASE_STATE).grip.front);
 });
@@ -239,8 +242,16 @@ test('custom brake bias and FWD / RWD / AWD drive layouts change axle Fx', () =>
   assert.equal(frontBiased.balance, 'understeer');
 });
 
-test('the four-car garage exposes the unpacked geometry, drivetrain and tyre defaults', () => {
-  assert.deepEqual(model.CAR_ORDER, ['gt86', 'mx5_nd', 'mx5_cup', 'subaru_22b']);
+test('the nineteen-car garage exposes the unpacked geometry, drivetrain and tyre defaults', () => {
+  assert.equal(model.CAR_ORDER.length, 19);
+  assert.deepEqual(model.CAR_ORDER.slice(0, 4), ['gt86', 'mx5_nd', 'mx5_cup', 'subaru_22b']);
+  assert.deepEqual(model.CAR_ORDER.slice(4), [
+    's2000_ap1', 'porsche_911_gt3_cup_2017',
+    'porsche_cayman_gt4_clubsport', 'bmw_m3_e92', 'bmw_m4', 'bmw_z4',
+    'bmw_z4_gt3', 'ferrari_f2004', 'mercedes_amg_gt3',
+    'lotus_exige_v6_cup', 'lotus_exige_240', 'corvette_c6_z06',
+    'mazda_rx7_spirit_r', 'honda_civic_type_r_2008', 'toyota_mrs_haru'
+  ]);
 
   const gt86 = model.getCarProfile('gt86');
   approx(gt86.massKg, 1285, 1e-12, 'GT86 mass');
@@ -294,6 +305,30 @@ test('the four-car garage exposes the unpacked geometry, drivetrain and tyre def
   assert.equal(subaru.driveType, 'AWD');
   assert.equal(subaru.defaultCompoundId, 'semislicks');
 
+  const s2000 = model.getCarProfile('s2000_ap1');
+  approx(s2000.massKg, 1315, 1e-12, 'S2000 mass');
+  approx(s2000.wheelbaseM, 2.4, 1e-12, 'S2000 wheelbase');
+  approx(s2000.frontWeight, 0.5001, 1e-12, 'S2000 front weight');
+  approx(s2000.tyreCompounds.ac0.rear.fz0N, 2767, 1e-12, 'S2000 rear FZ0');
+
+  const cup911 = model.getCarProfile('porsche_911_gt3_cup_2017');
+  approx(cup911.frontWeight, 0.38, 1e-12, '911 Cup front weight');
+  assert.equal(cup911.frontSuspension.type, 'STRUT');
+  assert.equal(cup911.rearSuspension.type, 'DWB');
+  assert.equal(cup911.defaultCompoundId, 'ac0', '911 Cup default tyre');
+
+  const f2004 = model.getCarProfile('ferrari_f2004');
+  approx(f2004.massKg, 605, 1e-12, 'F2004 mass');
+  assert.equal(f2004.defaultCompoundId, 'ac1', 'F2004 default tyre');
+  approx(f2004.tyreCompounds.ac1.front.muRef, 1.8, 1e-12, 'F2004 front mu');
+
+  const civic = model.getCarProfile('honda_civic_type_r_2008');
+  assert.equal(civic.driveType, 'FWD');
+  const mrs = model.getCarProfile('toyota_mrs_haru');
+  assert.equal(mrs.frontSuspension.type, 'STRUT');
+  assert.equal(mrs.rearSuspension.type, 'STRUT');
+  approx(mrs.brakeBiasFront, 0.5, 1e-12, 'MR-S brake bias');
+
   assert.equal(model.getCarProfile('missing').id, 'gt86');
 
   const cupState = model.createBaseState('mx5_cup');
@@ -305,6 +340,30 @@ test('the four-car garage exposes the unpacked geometry, drivetrain and tyre def
   approx(ecoState.tireMuRef, 1.215, 1e-12, 'GT86 ECO state mu');
   approx(ecoState.tireFz0N, 2274, 1e-12, 'GT86 ECO state FZ0');
   approx(ecoState.tireVerticalRateNm, 263372, 1e-12, 'GT86 ECO vertical rate');
+});
+
+test('front and rear AC tyre tables are evaluated independently', () => {
+  const profile = model.getCarProfile('porsche_911_gt3_cup_2017');
+  const compound = profile.tyreCompounds[profile.defaultCompoundId];
+  assert.notEqual(compound.front.fz0N, compound.rear.fz0N);
+  assert.notEqual(compound.front.lsExpy, compound.rear.lsExpy);
+
+  const state = model.createBaseState(profile.id);
+  approx(state.tireFz0N, compound.front.fz0N, 1e-12, 'front FZ0');
+  approx(state.tireRearFz0N, compound.rear.fz0N, 1e-12, 'rear FZ0');
+  approx(state.tireWidthM, compound.front.widthM, 1e-12, 'front width');
+  approx(state.tireRearWidthM, compound.rear.widthM, 1e-12, 'rear width');
+
+  const result = model.calculate(state);
+  const front = result.tyreGrip.frontOuter;
+  const rear = result.tyreGrip.rearOuter;
+  const expectedFrontMu = compound.front.muRef *
+    Math.pow(front.load / compound.front.fz0N, -(1 - compound.front.lsExpy));
+  const expectedRearMu = compound.rear.muRef *
+    Math.pow(rear.load / compound.rear.fz0N, -(1 - compound.rear.lsExpy));
+  approx(front.mu, expectedFrontMu, 1e-12, 'front axle mu');
+  approx(rear.mu, expectedRearMu, 1e-12, 'rear axle mu');
+  assert.notEqual(front.mu, rear.mu);
 });
 
 test('unpacked AC suspension hardpoints drive each car 3D architecture', () => {
@@ -492,12 +551,14 @@ test('with zero tyre load sensitivity, axle stiffness distribution cannot change
   const a = model.calculate({
     ...base,
     tireLoadSensitivityK: 0,
+    tireRearLoadSensitivityK: 0,
     arbFrontNmm: 0,
     arbRearNmm: 60
   });
   const b = model.calculate({
     ...base,
     tireLoadSensitivityK: 0,
+    tireRearLoadSensitivityK: 0,
     arbFrontNmm: 80,
     arbRearNmm: 0
   });
@@ -552,6 +613,7 @@ test('high lateral demand raises a total grip warning and limit flag', () => {
     ...base,
     lateralG: 1.4,
     tireMuRef: 0.8,
+    tireRearMuRef: 0.8,
     springFrontNmm: 15,
     springRearNmm: 15,
     arbFrontNmm: 0,

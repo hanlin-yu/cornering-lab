@@ -245,6 +245,8 @@
     this.gLabel = container.querySelector('[data-g-label]');
     this.currentGArrowLength = 1.3;
     this.tyreVerticalRate = DIM.tyreVerticalRate;
+    this.tyreVerticalRateFront = DIM.tyreVerticalRate;
+    this.tyreVerticalRateRear = DIM.tyreVerticalRate;
     this.loading = container.querySelector('.scene-loading');
     this.frontAxleZ = DIM.wheelbase / 2;
     this.rearAxleZ = -DIM.wheelbase / 2;
@@ -1312,8 +1314,14 @@
     this.target.lateralG = result.state.lateralG;
     this.target.longitudinalG = result.state.longitudinalG;
     if (result.state.tireVerticalRateNm > 0) {
-      this.tyreVerticalRate = result.state.tireVerticalRateNm;
+      this.tyreVerticalRateFront = result.state.tireVerticalRateNm;
     }
+    if (result.state.tireRearVerticalRateNm > 0) {
+      this.tyreVerticalRateRear = result.state.tireRearVerticalRateNm;
+    }
+    this.tyreVerticalRate = 0.5 * (
+      this.tyreVerticalRateFront + this.tyreVerticalRateRear
+    );
 
     var cogHeight = clamp(result.state.cgHeightM, 0.2, 0.7);
     var bodyScaleZ = this.body.scale.z || 1;
@@ -1483,7 +1491,10 @@
     ['FL', 'FR', 'RL', 'RR'].forEach(function (wheelId) {
       var wheel = self.corners[wheelId];
       var load = Math.max(0, self.visual.loads[wheelId]);
-      var deflection = clamp(load / self.tyreVerticalRate, 0, 0.048);
+      var verticalRate = wheel.axle === 'front'
+        ? self.tyreVerticalRateFront
+        : self.tyreVerticalRateRear;
+      var deflection = clamp(load / verticalRate, 0, 0.048);
       wheel.root.position.y = DIM.wheelRadius - deflection;
       wheel.tire.scale.y = clamp(1 - deflection / DIM.wheelRadius, 0.86, 1);
       if (wheel.axle === 'front') {

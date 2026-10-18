@@ -98,7 +98,7 @@
           </select>
         </div>
 
-        <p class="distribution-note">
+        <p class="distribution-note" id="distributionSourceNote">
           AC 原车：brakes.ini <b>FRONT_SHARE = 0.72</b>，drivetrain.ini <b>TYPE = RWD</b>，COCKPIT_ADJUSTABLE = 0；上方为分析用自定义。制动占比影响制动阶段，驱动形式影响加速阶段。
         </p>
       </section>
@@ -119,19 +119,19 @@
         </div>
 
         <div class="tyre-readouts">
-          <span>μ_ref <b id="tyreMuReadout">1.280</b></span>
-          <span>k <b id="tyreKReadout">0.188</b></span>
-          <span>FZ0 <b id="tyreFz0Readout">2494</b><small>N</small></span>
+          <span>μ_ref F/R <b id="tyreMuReadout">1.280</b></span>
+          <span>k F/R <b id="tyreKReadout">0.188</b></span>
+          <span>FZ0 F/R <b id="tyreFz0Readout">2494</b><small>N</small></span>
         </div>
 
         <div class="tyre-custom-fields" id="tyreCustomFields" hidden>
           <label>
-            <span>基准 μ_ref</span>
-            <input data-param="tireMuRef" type="number" min="0.60" max="1.80" step="0.005" value="1.28" inputmode="decimal">
+            <span>基准 μ_ref（前后共用）</span>
+            <input data-param="tireMuRef" type="number" min="0.60" max="2.00" step="0.005" value="1.28" inputmode="decimal">
           </label>
           <label>
-            <span>k · 载荷敏感指数</span>
-            <input data-param="tireLoadSensitivityK" type="number" min="0" max="0.8" step="0.001" value="0.1881" inputmode="decimal">
+            <span>k · 载荷敏感指数（共用）</span>
+            <input data-param="tireLoadSensitivityK" type="number" min="0" max="0.90" step="0.001" value="0.1881" inputmode="decimal">
           </label>
         </div>
 
@@ -141,7 +141,7 @@
           <small>k = 1 − LS_EXPY；逐轮按实际 Fz 计算 Fy,max = μ(Fz) · Fz。</small>
         </p>
         <p class="tyre-scope">
-          仅模拟底盘重心转移与载荷敏感 μ(Fz)；忽略轮胎滑移角 / 滑移率对 μ 的影响。
+          前后轴分别读取 FRONT / REAR 的 FZ0、LS_EXPY、宽度、半径和垂向刚度；自定义 μ_ref / k 同时作用于前后轴。仅模拟底盘重心转移与载荷敏感 μ(Fz)，忽略轮胎滑移角 / 滑移率对 μ 的影响。
         </p>
       </section>
 
@@ -339,11 +339,11 @@
         <div class="advanced-grid">
           <label class="advanced-field">
             <span>整车质量 <small>MASS · kg</small></span>
-            <input data-param="massKg" type="number" min="900" max="1900" step="5" value="1285" inputmode="decimal">
+            <input data-param="massKg" type="number" min="450" max="2000" step="5" value="1285" inputmode="decimal">
           </label>
           <label class="advanced-field">
             <span>前轴荷 <small>FRONT · %</small></span>
-            <input id="frontWeightPct" type="number" min="40" max="66" step="0.1" value="57.5" inputmode="decimal">
+            <input id="frontWeightPct" type="number" min="30" max="70" step="0.1" value="57.5" inputmode="decimal">
           </label>
           <label class="advanced-field advanced-field--wide">
             <span>质心高度 <small>CG · m</small></span>
@@ -659,9 +659,9 @@
             </div>
             <div class="tyre-curve-summary">
               <span>当前轮胎 <b id="curveTyreName">Semislicks</b></span>
-              <span>μ_ref <b id="curveMuRef">1.280</b></span>
-              <span>k <b id="curveK">0.188</b></span>
-              <span>FZ0 <b id="curveFz0">2494</b> N</span>
+              <span>μ_ref F/R <b id="curveMuRef">1.280</b></span>
+              <span>k F/R <b id="curveK">0.188</b></span>
+              <span>FZ0 F/R <b id="curveFz0">2494</b> N</span>
             </div>
           </div>
 

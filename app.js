@@ -310,6 +310,39 @@
     return compound ? compound.name : '—';
   }
 
+  function formatTyrePair(front, rear, digits) {
+    var frontText = Number(front).toFixed(digits);
+    if (Math.abs(Number(front) - Number(rear)) < 1e-9) {
+      return frontText;
+    }
+    return frontText + ' / ' + Number(rear).toFixed(digits);
+  }
+
+  function formatTyrePairInt(front, rear) {
+    var frontText = String(Math.round(Number(front)));
+    if (Math.abs(Number(front) - Number(rear)) < 1e-9) {
+      return frontText;
+    }
+    return frontText + ' / ' + String(Math.round(Number(rear)));
+  }
+
+  function applyCompoundToState(compound) {
+    var front = compound.front || compound;
+    var rear = compound.rear || compound;
+    state.tireMuRef = front.muRef;
+    state.tireFz0N = front.fz0N;
+    state.tireLoadSensitivityK = front.k;
+    state.tireVerticalRateNm = front.verticalRateNm;
+    state.tireWidthM = front.widthM;
+    state.tireRadiusM = front.radiusM;
+    state.tireRearMuRef = rear.muRef;
+    state.tireRearFz0N = rear.fz0N;
+    state.tireRearLoadSensitivityK = rear.k;
+    state.tireRearVerticalRateNm = rear.verticalRateNm;
+    state.tireRearWidthM = rear.widthM;
+    state.tireRearRadiusM = rear.radiusM;
+  }
+
   function sortedCompounds() {
     return Object.keys(TYRE_COMPOUNDS).map(function (id) {
       return TYRE_COMPOUNDS[id];
@@ -357,8 +390,12 @@
     setText('barMass', String(Math.round(state.massKg)));
     setText('barWheelbase', state.wheelbaseM.toFixed(3));
     setText('barDrive', state.driveType);
-    setText('barTire',
-      currentTyreName() + ' · ' + Math.round(state.tireWidthM * 1000) + 'mm');
+    var widthText = Math.round(state.tireWidthM * 1000) + 'mm';
+    if (Math.abs(state.tireRearWidthM - state.tireWidthM) > 1e-9) {
+      widthText = Math.round(state.tireWidthM * 1000) + '/' +
+        Math.round(state.tireRearWidthM * 1000) + 'mm';
+    }
+    setText('barTire', currentTyreName() + ' · ' + widthText);
   }
 
   function updateSourcePanel() {
@@ -376,7 +413,13 @@
       state.tireLoadSensitivityK,
       state.tireWidthM,
       state.tireRadiusM,
-      state.tireVerticalRateNm
+      state.tireVerticalRateNm,
+      state.tireRearMuRef,
+      state.tireRearFz0N,
+      state.tireRearLoadSensitivityK,
+      state.tireRearWidthM,
+      state.tireRearRadiusM,
+      state.tireRearVerticalRateNm
     ].join('|');
     if (signature === lastSourceSignature) {
       return;
@@ -390,16 +433,19 @@
     var compoundNames = sortedCompounds().map(function (compound) {
       return compound.name;
     }).join(' / ');
-    var widthMm = Math.round(state.tireWidthM * 1000);
+    var widthMm = Math.round(state.tireWidthM * 1000) + ' / ' +
+      Math.round(state.tireRearWidthM * 1000);
     var biasPct = Math.round(profile.brakeBiasFront * 100);
     var selectedSection = selected ? selected.section : 'CUSTOM';
     var selectedNote = selected
-      ? selectedSection + ' · μ_ref ' + state.tireMuRef.toFixed(3) +
-        ' · FZ0 ' + Math.round(state.tireFz0N) + ' N · LS_EXPY ' +
-        selected.lsExpy + ' · k ' + state.tireLoadSensitivityK.toFixed(4)
-      : 'CUSTOM · μ_ref ' + state.tireMuRef.toFixed(3) +
-        ' · k ' + state.tireLoadSensitivityK.toFixed(4) +
-        ' · FZ0 ' + Math.round(state.tireFz0N) + ' N';
+      ? selectedSection + ' · μ_ref F/R ' +
+        formatTyrePair(state.tireMuRef, state.tireRearMuRef, 3) +
+        ' · FZ0 F/R ' + formatTyrePairInt(state.tireFz0N, state.tireRearFz0N) +
+        ' N · k F/R ' +
+        formatTyrePair(state.tireLoadSensitivityK, state.tireRearLoadSensitivityK, 4)
+      : 'CUSTOM · μ_ref/k 前后共用 ' + state.tireMuRef.toFixed(3) + ' / ' +
+        state.tireLoadSensitivityK.toFixed(4) +
+        ' · FZ0 F/R ' + formatTyrePairInt(state.tireFz0N, state.tireRearFz0N) + ' N';
 
     setText('sourceCarTag', profile.shortName + ' / ' + profile.tag);
     setText('sourceBadge', profile.carId + ' / ' + profile.sourceFile);
@@ -434,11 +480,14 @@
       ['驱动形式', profile.driveType, profile.driveSource],
       ['轮胎胶料', compoundNames, '默认 ' + defaultTire.name],
       ['当前胶料', selectedName, selectedNote],
-      ['轮胎宽度 F / R', widthMm + ' / ' + widthMm + ' mm',
+      ['轮胎宽度 F / R', widthMm + ' mm',
         'WIDTH；不进入 μ(Fz) 幂律'],
-      ['轮胎半径 / 垂向刚度',
-        state.tireRadiusM.toFixed(4) + ' m / ' +
-        Math.round(state.tireVerticalRateNm).toLocaleString('en-US') + ' N/m',
+      ['轮胎半径 F / R',
+        state.tireRadiusM.toFixed(4) + ' / ' + state.tireRearRadiusM.toFixed(4) + ' m',
+        'RADIUS，前后轴独立读取'],
+      ['垂向刚度 F / R',
+        Math.round(state.tireVerticalRateNm).toLocaleString('en-US') + ' / ' +
+        Math.round(state.tireRearVerticalRateNm).toLocaleString('en-US') + ' N/m',
         '垂向刚度仅用于 3D 轮胎压缩视觉'],
       ['悬挂形式',
         '前 ' + profile.frontSuspension.type + ' · ' + profile.frontSuspension.name +
@@ -473,6 +522,17 @@
     setText('stockPresetLabel', currentCar.shortName + ' 原厂');
     setText('frontSuspensionLabel', currentCar.frontSuspension.name);
     setText('rearSuspensionLabel', currentCar.rearSuspension.name);
+
+    var distributionNote = $('distributionSourceNote');
+    if (distributionNote) {
+      distributionNote.innerHTML =
+        'AC 原车：brakes.ini <b>FRONT_SHARE = ' +
+        currentCar.brakeBiasFront.toFixed(3) +
+        '</b>，drivetrain.ini <b>TYPE = ' + currentCar.driveType +
+        '</b>，COCKPIT_ADJUSTABLE = ' +
+        (currentCar.cockpitBrakeAdjustable ? '1' : '0') +
+        '；上方为分析用自定义。制动占比影响制动阶段，驱动形式影响加速阶段。';
+    }
 
     var carSelect = $('carSelect');
     if (carSelect && carSelect.value !== currentCarId) {
@@ -530,18 +590,25 @@
       : compound ? compound.name.toUpperCase() : 'TYRE';
 
     setText('compoundTag', tag);
-    setText('tyreMuReadout', state.tireMuRef.toFixed(3));
-    setText('tyreKReadout', state.tireLoadSensitivityK.toFixed(3));
-    setText('tyreFz0Readout', String(Math.round(state.tireFz0N)));
+    setText('tyreMuReadout',
+      formatTyrePair(state.tireMuRef, state.tireRearMuRef, 3));
+    setText('tyreKReadout',
+      formatTyrePair(state.tireLoadSensitivityK, state.tireRearLoadSensitivityK, 3));
+    setText('tyreFz0Readout',
+      formatTyrePairInt(state.tireFz0N, state.tireRearFz0N));
     setText('curveTyreName', currentTyreName());
-    setText('curveMuRef', state.tireMuRef.toFixed(3));
-    setText('curveK', state.tireLoadSensitivityK.toFixed(3));
-    setText('curveFz0', String(Math.round(state.tireFz0N)));
+    setText('curveMuRef',
+      formatTyrePair(state.tireMuRef, state.tireRearMuRef, 3));
+    setText('curveK',
+      formatTyrePair(state.tireLoadSensitivityK, state.tireRearLoadSensitivityK, 3));
+    setText('curveFz0',
+      formatTyrePairInt(state.tireFz0N, state.tireRearFz0N));
 
-    var widthMm = Math.round(state.tireWidthM * 1000);
+    var widthFront = Math.round(state.tireWidthM * 1000);
+    var widthRear = Math.round(state.tireRearWidthM * 1000);
     setText('tyreWidthNote',
-      'AC WIDTH：前 ' + widthMm + ' / 后 ' + widthMm +
-      ' mm。WIDTH 不进入这条 AC 载荷敏感幂律，因此前后曲线使用相同参数并重合。曲线只随轮荷变化，忽略轮胎滑移对 μ 的影响。');
+      'AC WIDTH：前 ' + widthFront + ' / 后 ' + widthRear +
+      ' mm。WIDTH 不进入这条 AC 载荷敏感幂律；前后轴分别使用各自的 FZ0 / LS_EXPY，曲线可能分开。曲线只随轮荷变化，忽略轮胎滑移对 μ 的影响。');
     updateVehicleBar();
   }
 
@@ -1808,11 +1875,17 @@
     var plotHeight = height - margin.top - margin.bottom;
 
     var tyreState = result.state;
-    var muRef = tyreState.tireMuRef;
-    var fz0N = tyreState.tireFz0N;
-    var k = tyreState.tireLoadSensitivityK;
 
-    function muAtLoad(load) {
+    function muAtLoad(load, axle) {
+      var muRef = axle === 'rear'
+        ? tyreState.tireRearMuRef
+        : tyreState.tireMuRef;
+      var fz0N = axle === 'rear'
+        ? tyreState.tireRearFz0N
+        : tyreState.tireFz0N;
+      var k = axle === 'rear'
+        ? tyreState.tireRearLoadSensitivityK
+        : tyreState.tireLoadSensitivityK;
       if (!(load > 0) || !(fz0N > 0)) {
         return 0;
       }
@@ -1851,7 +1924,12 @@
     var xMin = Math.max(400, Math.floor(minLoad * 0.82 / 100) * 100);
     var xMax = Math.ceil(Math.max(maxLoad * 1.12, xMin + 1800) / 500) * 500;
 
-    var yCandidates = [muAtLoad(xMin), muAtLoad(xMax)];
+    var yCandidates = [
+      muAtLoad(xMin, 'front'),
+      muAtLoad(xMax, 'front'),
+      muAtLoad(xMin, 'rear'),
+      muAtLoad(xMax, 'rear')
+    ];
     samples.forEach(function (sample) {
       if (sample.mu > 0) {
         yCandidates.push(sample.mu);
@@ -1955,22 +2033,26 @@
       class: 'tyre-axis-title'
     }, 'Fz / TYRE (kN)'));
 
-    var pathData = '';
+    var frontPathData = '';
+    var rearPathData = '';
     var sampleCount = 100;
     for (var i = 0; i <= sampleCount; i += 1) {
       var sampleLoad = xMin + ((xMax - xMin) * i) / sampleCount;
       var px = xPixel(sampleLoad);
-      var py = yPixel(muAtLoad(sampleLoad));
-      pathData += (i === 0 ? 'M' : 'L') + px.toFixed(2) + ' ' + py.toFixed(2);
+      var frontPy = yPixel(muAtLoad(sampleLoad, 'front'));
+      var rearPy = yPixel(muAtLoad(sampleLoad, 'rear'));
+      frontPathData += (i === 0 ? 'M' : 'L') + px.toFixed(2) + ' ' + frontPy.toFixed(2);
+      rearPathData += (i === 0 ? 'M' : 'L') + px.toFixed(2) + ' ' + rearPy.toFixed(2);
       if (i < sampleCount) {
-        pathData += ' ';
+        frontPathData += ' ';
+        rearPathData += ' ';
       }
     }
     if (frontPath) {
-      frontPath.setAttribute('d', pathData);
+      frontPath.setAttribute('d', frontPathData);
     }
     if (rearPath) {
-      rearPath.setAttribute('d', pathData);
+      rearPath.setAttribute('d', rearPathData);
     }
 
     samples.forEach(function (sample) {
@@ -2024,11 +2106,18 @@
 
     if (note) {
       if (currentTyreId === 'custom') {
-        note.textContent = '自定义模式：前后轴共用同一组 μ_ref / k；四点为当前实际轮荷。';
+        note.textContent = '自定义模式：前后轴共用 μ_ref / k；FZ0 沿用当前胶料，四点为当前实际轮荷。';
       } else {
         var compound = TYRE_COMPOUNDS[currentTyreId];
+        var sameTyre =
+          Math.abs(tyreState.tireMuRef - tyreState.tireRearMuRef) < 1e-9 &&
+          Math.abs(tyreState.tireFz0N - tyreState.tireRearFz0N) < 1e-9 &&
+          Math.abs(tyreState.tireLoadSensitivityK - tyreState.tireRearLoadSensitivityK) < 1e-9;
         note.textContent = 'AC ' + (compound ? compound.section : '') +
-          '；前后轴参数相同，两条曲线重合。四点为当前实际轮荷。';
+          (sameTyre
+            ? '；前后轴参数相同，两条曲线重合。'
+            : '；前后轴参数不同，两条曲线分开。') +
+          '四点为当前实际轮荷。';
       }
     }
 
@@ -2109,6 +2198,11 @@
     value = clamp(value, min, max);
 
     state[key] = value;
+    if (key === 'tireMuRef') {
+      state.tireRearMuRef = value;
+    } else if (key === 'tireLoadSensitivityK') {
+      state.tireRearLoadSensitivityK = value;
+    }
     markGRegionsDirty();
     clearAutoNote();
     syncControls();
@@ -2143,10 +2237,10 @@
         if (!Number.isFinite(pct)) {
           return;
         }
-        if (!isCommit && (pct < 40 || pct > 66)) {
+        if (!isCommit && (pct < 30 || pct > 70)) {
           return;
         }
-        pct = clamp(pct, 40, 66);
+        pct = clamp(pct, 30, 70);
         state.frontWeight = pct / 100;
         markGRegionsDirty();
         clearAutoNote();
@@ -2188,12 +2282,12 @@
         currentTyreId = tyreSelect.value;
         var compound = TYRE_COMPOUNDS[currentTyreId];
         if (compound) {
-          state.tireMuRef = compound.muRef;
-          state.tireFz0N = compound.fz0N;
-          state.tireLoadSensitivityK = compound.k;
-          state.tireVerticalRateNm = compound.verticalRateNm;
-          state.tireWidthM = compound.widthM;
-          state.tireRadiusM = compound.radiusM;
+          applyCompoundToState(compound);
+        } else if (currentTyreId === 'custom') {
+          // Custom μ_ref/k are shared by both axles; preserve per-axle FZ0,
+          // width, radius and vertical rate from the previous AC compound.
+          state.tireRearMuRef = state.tireMuRef;
+          state.tireRearLoadSensitivityK = state.tireLoadSensitivityK;
         }
         markGRegionsDirty();
         clearAutoNote();
