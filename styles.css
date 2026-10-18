@@ -535,16 +535,16 @@ input:focus-visible {
 }
 
 .g-pad-axes text {
-  fill: #718991;
+  fill: #789098;
   font-family: var(--font-mono);
-  font-size: 9.4px;
+  font-size: 10.2px;
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.02em;
 }
 
 .g-pad-axes .g-pad-axis-title {
-  fill: #93aab2;
-  font-size: 8.4px;
+  fill: #9ab1b9;
+  font-size: 9.2px;
   letter-spacing: 0.11em;
 }
 
