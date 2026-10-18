@@ -3278,11 +3278,12 @@ input:focus-visible {
 }
 
 .tyre-curve-head h2 {
-  margin: 4px 0 0;
+  margin: 3px 0 0;
   color: var(--text);
-  font-size: 19px;
+  font-size: 27px;
   font-weight: 500;
-  letter-spacing: -0.025em;
+  letter-spacing: -0.02em;
+  line-height: 0.95;
 }
 
 .tyre-curve-summary {
@@ -3348,15 +3349,15 @@ input:focus-visible {
 }
 
 .tyre-curve-axes text {
-  fill: #6e828b;
+  fill: #789098;
   font-family: var(--font-mono);
-  font-size: 9.5px;
+  font-size: 13.5px;
   font-variant-numeric: tabular-nums;
 }
 
 .tyre-curve-axes .tyre-axis-title {
-  fill: #8ca2aa;
-  font-size: 9px;
+  fill: #9bb1b9;
+  font-size: 12.5px;
   letter-spacing: 0.06em;
 }
 
@@ -3402,11 +3403,12 @@ input:focus-visible {
 .tyre-point-label {
   fill: #ecf8fa;
   font-family: var(--font-mono);
-  font-size: 10px;
-  letter-spacing: 0.04em;
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
   paint-order: stroke;
   stroke: #071014;
-  stroke-width: 3px;
+  stroke-width: 3.5px;
   stroke-linejoin: round;
 }
 
@@ -3425,9 +3427,9 @@ input:focus-visible {
   margin: 1px 0 0;
   padding: 8px 3px 0;
   border-top: 1px solid var(--line);
-  color: #667a83;
+  color: #71858e;
   font-family: var(--font-mono);
-  font-size: 8px;
+  font-size: 9.4px;
   letter-spacing: 0.02em;
 }
 
@@ -3475,13 +3477,13 @@ input:focus-visible {
   display: inline-flex;
   align-items: baseline;
   gap: 5px;
-  padding: 3px 7px;
+  padding: 3px 8px;
   border: 1px solid rgba(170, 201, 213, 0.12);
   border-radius: 6px;
   color: #7d9299;
   background: rgba(5, 12, 16, 0.3);
   font-family: var(--font-mono);
-  font-size: 8px;
+  font-size: 9.2px;
 }
 
 .tyre-wheel-chip i {
@@ -3492,7 +3494,7 @@ input:focus-visible {
 
 .tyre-wheel-chip b {
   color: #d3e3e7;
-  font-size: 10px;
+  font-size: 11.8px;
   font-weight: 400;
   font-variant-numeric: tabular-nums;
 }
