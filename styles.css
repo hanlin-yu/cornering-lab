@@ -477,11 +477,6 @@ input:focus-visible {
   letter-spacing: 0.11em;
 }
 
-.condition-section {
-  padding-top: 18px;
-  margin-top: 16px;
-}
-
 .condition-readout {
   display: flex;
   align-items: flex-end;
@@ -1808,17 +1803,62 @@ input:focus-visible {
   min-width: 0;
 }
 
-.hero-grid {
+.dashboard-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 338px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 18px;
   align-items: stretch;
+}
+
+.dashboard-grid > .viewport {
+  height: auto;
+  min-height: clamp(640px, 58vh, 720px);
 }
 
 .viewport {
   height: clamp(680px, 62vh, 800px);
   overflow: hidden;
   animation: reveal 0.8s 0.13s both;
+}
+
+.condition-panel {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 20px 18px 17px;
+  animation: reveal 0.8s 0.15s both;
+}
+
+.condition-heading {
+  align-items: flex-start;
+}
+
+.condition-panel .g-readout {
+  margin-top: 16px;
+}
+
+.condition-panel .g-pad {
+  width: 100%;
+  max-width: 380px;
+  margin-right: auto;
+  margin-left: auto;
+}
+
+.condition-panel .g-pad-footer {
+  justify-content: center;
+}
+
+.condition-panel .g-pad-note {
+  margin-top: 10px;
+}
+
+.dashboard-grid .balance-gauge {
+  max-width: 430px;
+  max-height: 230px;
+}
+
+.dashboard-grid .tyre-curve-body {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .scene {
@@ -3777,10 +3817,6 @@ input:focus-visible {
     grid-template-columns: minmax(286px, 316px) minmax(0, 1fr);
   }
 
-  .hero-grid {
-    grid-template-columns: minmax(0, 1fr) 322px;
-  }
-
   .balance-panel {
     padding-right: 16px;
     padding-left: 16px;
@@ -3799,12 +3835,22 @@ input:focus-visible {
 }
 
 @media (max-width: 1320px) {
-  .hero-grid {
+  .dashboard-grid {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .viewport {
+  .dashboard-grid > .viewport {
     height: clamp(600px, 62vh, 760px);
+    min-height: 0;
+  }
+
+  .dashboard-grid .tyre-curve-body {
+    grid-template-columns: minmax(0, 1fr) minmax(270px, 0.42fr);
+  }
+
+  .dashboard-grid .balance-gauge {
+    max-width: 360px;
+    max-height: 168px;
   }
 
   .balance-panel {
@@ -3890,11 +3936,12 @@ input:focus-visible {
     border-left: 0;
   }
 
-  .results {
+  .results,
+  .dashboard-grid {
     display: contents;
   }
 
-  .hero-grid {
+  .viewport {
     order: 1;
   }
 
@@ -3906,16 +3953,24 @@ input:focus-visible {
     width: 100%;
   }
 
-  .tyre-curve-panel {
+  .condition-panel {
     order: 3;
   }
 
-  .axle-section {
+  .balance-panel {
     order: 4;
   }
 
-  .source-panel {
+  .tyre-curve-panel {
     order: 5;
+  }
+
+  .axle-section {
+    order: 6;
+  }
+
+  .source-panel {
+    order: 7;
   }
 
   .site-header {
@@ -4015,13 +4070,18 @@ input:focus-visible {
     display: none;
   }
 
-  .hero-grid,
-  .results {
+  .workspace {
     gap: 14px;
   }
 
+  .dashboard-grid > .viewport,
   .viewport {
     height: 470px;
+    min-height: 0;
+  }
+
+  .condition-panel {
+    padding: 17px 15px 15px;
   }
 
   .scene-topbar {

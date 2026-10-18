@@ -66,97 +66,6 @@
         <span class="panel-index" aria-hidden="true">01</span>
       </div>
 
-      <section class="control-section condition-section" aria-labelledby="conditionTitle">
-        <div class="section-heading">
-          <h3 id="conditionTitle">过弯条件 <span>G-G INPUT</span></h3>
-          <span class="g-phase-badge" id="gPhaseBadge">弯中 / MID</span>
-        </div>
-
-        <div class="g-readout">
-          <div class="g-readout-values">
-            <div class="condition-value">
-              <span id="ayValue">0.85</span><small>g LAT</small>
-            </div>
-            <div class="condition-value condition-value--long">
-              <span id="longGValue">0.00</span><small>g LONG</small>
-            </div>
-          </div>
-          <div class="g-readout-meta">
-            <span>合成 <b id="gMagValue">0.85</b> g</span>
-            <span>100 km/h 等径弯 R <b id="radiusValue">93 m</b></span>
-          </div>
-        </div>
-
-        <div
-          class="g-pad"
-          id="gPad"
-          tabindex="0"
-          role="application"
-          aria-label="二维 G-G 输入：横轴为侧向 G，纵轴为纵向 G，向上为制动、向下为加速。拖动光标或使用方向键调节。"
-        >
-          <canvas id="gPadRegionCanvas" class="g-pad-region-canvas" aria-hidden="true"></canvas>
-          <svg id="gPadSvg" viewBox="0 0 320 320" aria-hidden="true">
-            <defs>
-              <linearGradient id="gPadGuideGradient" x1="0" y1="1" x2="1" y2="0">
-                <stop offset="0" stop-color="#5ad7d2" stop-opacity=".7"/>
-                <stop offset=".55" stop-color="#d8e7ea" stop-opacity=".3"/>
-                <stop offset="1" stop-color="#f2b25e" stop-opacity=".7"/>
-              </linearGradient>
-            </defs>
-            <g id="gPadGrid" class="g-pad-grid"></g>
-            <g id="gPadAxes" class="g-pad-axes"></g>
-            <path id="gPadCornerGuide" class="g-pad-guide" fill="none"></path>
-            <path id="gPadTrail" class="g-pad-trail" fill="none"></path>
-            <g id="gPadStateLabels" class="g-pad-state-labels" aria-hidden="true"></g>
-            <line id="gPadProjectionX" class="g-pad-projection" aria-hidden="true"></line>
-            <line id="gPadProjectionY" class="g-pad-projection" aria-hidden="true"></line>
-            <circle id="gPadCursorHalo" class="g-pad-cursor-halo" r="10" aria-hidden="true"></circle>
-            <circle id="gPadCursor" class="g-pad-cursor" r="4.4" aria-hidden="true"></circle>
-          </svg>
-        </div>
-
-        <div class="g-pad-footer">
-          <button class="g-play-button" id="gPlayButton" type="button" aria-pressed="false">
-            <span class="g-play-icon" aria-hidden="true"></span>
-            <span id="gPlayLabel">扫弯回放</span>
-          </button>
-          <button class="g-clear-button" id="gClearTrailButton" type="button">清轨迹</button>
-        </div>
-
-        <div class="g-vehicle-state" id="gVehicleState" data-state="grip" aria-live="polite">
-          <span class="g-vehicle-state-dot" aria-hidden="true"></span>
-          <span class="g-vehicle-state-head">
-            <strong id="gVehicleStateLabel">抓地内</strong>
-            <small id="gVehicleStateEn">WITHIN GRIP</small>
-          </span>
-          <span class="g-vehicle-state-desc" id="gVehicleStateDesc">两轴联合利用率均低于 100%</span>
-        </div>
-
-        <div class="g-region-key" aria-label="连续平衡热力图：甩尾为暖色，黑色为中性，推头为冷色">
-          <span class="g-region-scale">
-            <span class="g-region-end">甩尾</span>
-            <i class="g-region-gradient" title="ICE–BLACK–FIRE"></i>
-            <span class="g-region-end">推头</span>
-          </span>
-          <span class="g-region-refresh">0.1 g 插值 · 1 s</span>
-        </div>
-
-        <div class="g-state-key" aria-label="轴超限状态颜色图例">
-          <span class="g-state-key-title">轴超限 / LIMIT</span>
-          <span data-state="power-over"><i aria-hidden="true"></i>动力甩尾</span>
-          <span data-state="power-under"><i aria-hidden="true"></i>动力推头</span>
-          <span data-state="front-lock"><i aria-hidden="true"></i>前轮抱死</span>
-          <span data-state="rear-lock"><i aria-hidden="true"></i>后轮抱死</span>
-          <span data-state="loss-of-control"><i aria-hidden="true"></i>失控</span>
-        </div>
-
-        <p class="g-pad-note">
-          拖动设置 G；回放从入弯制动到出弯加速。底色 = ΔU 连续热力图（0.1 g 采样、双线性插值；黑 = 中性，±25 pp 饱和）。轴超限区域以状态色描边和标签标出：纵向 &gt; +0.10 g 为动力状态，&lt; −0.10 g 为制动状态；两轴同时超限为失控；状态是轴饱和分类，不是滑移动力学。超限但纵向接近 0 的组合仍留黑并在状态条提示。
-          <span id="gLongTransferNote">纵向转移 后轴 +0.00 kN</span>
-          <span id="gDistributionNote">制动 72 / 28 · RWD</span>
-        </p>
-      </section>
-
       <section class="control-section distribution-section" aria-labelledby="distributionTitle">
         <div class="section-heading">
           <h3 id="distributionTitle">纵向分配 <span>BRAKE / DRIVE</span></h3>
@@ -452,7 +361,7 @@
     </aside>
 
     <section class="results" aria-label="计算结果">
-      <div class="hero-grid">
+      <div class="dashboard-grid">
         <section class="panel viewport" aria-labelledby="viewportTitle">
           <div class="scene" id="sceneContainer">
             <div class="scene-loading" id="sceneLoading">
@@ -568,6 +477,100 @@
           </div>
         </section>
 
+        <section class="panel condition-panel" aria-labelledby="conditionTitle">
+          <div class="panel-heading condition-heading">
+            <div>
+              <div class="eyebrow">CORNERING INPUT / G-G</div>
+              <h2 id="conditionTitle">过弯条件</h2>
+            </div>
+            <span class="g-phase-badge" id="gPhaseBadge">弯中 / MID</span>
+          </div>
+
+          <div class="g-readout">
+            <div class="g-readout-values">
+              <div class="condition-value">
+                <span id="ayValue">0.85</span><small>g LAT</small>
+              </div>
+              <div class="condition-value condition-value--long">
+                <span id="longGValue">0.00</span><small>g LONG</small>
+              </div>
+            </div>
+            <div class="g-readout-meta">
+              <span>合成 <b id="gMagValue">0.85</b> g</span>
+              <span>100 km/h 等径弯 R <b id="radiusValue">93 m</b></span>
+            </div>
+          </div>
+
+          <div
+            class="g-pad"
+            id="gPad"
+            tabindex="0"
+            role="application"
+            aria-label="二维 G-G 输入：横轴为侧向 G，纵轴为纵向 G，向上为制动、向下为加速。拖动光标或使用方向键调节。"
+          >
+            <canvas id="gPadRegionCanvas" class="g-pad-region-canvas" aria-hidden="true"></canvas>
+            <svg id="gPadSvg" viewBox="0 0 320 320" aria-hidden="true">
+              <defs>
+                <linearGradient id="gPadGuideGradient" x1="0" y1="1" x2="1" y2="0">
+                  <stop offset="0" stop-color="#5ad7d2" stop-opacity=".7"/>
+                  <stop offset=".55" stop-color="#d8e7ea" stop-opacity=".3"/>
+                  <stop offset="1" stop-color="#f2b25e" stop-opacity=".7"/>
+                </linearGradient>
+              </defs>
+              <g id="gPadGrid" class="g-pad-grid"></g>
+              <g id="gPadAxes" class="g-pad-axes"></g>
+              <path id="gPadCornerGuide" class="g-pad-guide" fill="none"></path>
+              <path id="gPadTrail" class="g-pad-trail" fill="none"></path>
+              <g id="gPadStateLabels" class="g-pad-state-labels" aria-hidden="true"></g>
+              <line id="gPadProjectionX" class="g-pad-projection" aria-hidden="true"></line>
+              <line id="gPadProjectionY" class="g-pad-projection" aria-hidden="true"></line>
+              <circle id="gPadCursorHalo" class="g-pad-cursor-halo" r="10" aria-hidden="true"></circle>
+              <circle id="gPadCursor" class="g-pad-cursor" r="4.4" aria-hidden="true"></circle>
+            </svg>
+          </div>
+
+          <div class="g-pad-footer">
+            <button class="g-play-button" id="gPlayButton" type="button" aria-pressed="false">
+              <span class="g-play-icon" aria-hidden="true"></span>
+              <span id="gPlayLabel">扫弯回放</span>
+            </button>
+            <button class="g-clear-button" id="gClearTrailButton" type="button">清轨迹</button>
+          </div>
+
+          <div class="g-vehicle-state" id="gVehicleState" data-state="grip" aria-live="polite">
+            <span class="g-vehicle-state-dot" aria-hidden="true"></span>
+            <span class="g-vehicle-state-head">
+              <strong id="gVehicleStateLabel">抓地内</strong>
+              <small id="gVehicleStateEn">WITHIN GRIP</small>
+            </span>
+            <span class="g-vehicle-state-desc" id="gVehicleStateDesc">两轴联合利用率均低于 100%</span>
+          </div>
+
+          <div class="g-region-key" aria-label="连续平衡热力图：甩尾为暖色，黑色为中性，推头为冷色">
+            <span class="g-region-scale">
+              <span class="g-region-end">甩尾</span>
+              <i class="g-region-gradient" title="ICE–BLACK–FIRE"></i>
+              <span class="g-region-end">推头</span>
+            </span>
+            <span class="g-region-refresh">0.1 g 插值 · 1 s</span>
+          </div>
+
+          <div class="g-state-key" aria-label="轴超限状态颜色图例">
+            <span class="g-state-key-title">轴超限 / LIMIT</span>
+            <span data-state="power-over"><i aria-hidden="true"></i>动力甩尾</span>
+            <span data-state="power-under"><i aria-hidden="true"></i>动力推头</span>
+            <span data-state="front-lock"><i aria-hidden="true"></i>前轮抱死</span>
+            <span data-state="rear-lock"><i aria-hidden="true"></i>后轮抱死</span>
+            <span data-state="loss-of-control"><i aria-hidden="true"></i>失控</span>
+          </div>
+
+          <p class="g-pad-note">
+            拖动设置 G；回放从入弯制动到出弯加速。底色 = ΔU 连续热力图（0.1 g 采样、双线性插值；黑 = 中性，±25 pp 饱和）。轴超限区域以状态色描边和标签标出：纵向 &gt; +0.10 g 为动力状态，&lt; −0.10 g 为制动状态；两轴同时超限为失控；状态是轴饱和分类，不是滑移动力学。超限但纵向接近 0 的组合仍留黑并在状态条提示。
+            <span id="gLongTransferNote">纵向转移 后轴 +0.00 kN</span>
+            <span id="gDistributionNote">制动 72 / 28 · RWD</span>
+          </p>
+        </section>
+
         <aside class="panel balance-panel" aria-labelledby="balanceTitle">
           <div class="panel-heading balance-heading">
             <div>
@@ -647,64 +650,64 @@
           <p class="tuning-hint" id="tuningHint"></p>
           <div class="warnings" id="warnings" aria-live="polite"></div>
         </aside>
+
+        <section class="panel tyre-curve-panel" aria-labelledby="tyreCurveTitle">
+          <div class="tyre-curve-head">
+            <div>
+              <div class="eyebrow">TYRE MODEL / POINTWISE μ–Fz</div>
+              <h2 id="tyreCurveTitle">轮胎抓地曲线</h2>
+            </div>
+            <div class="tyre-curve-summary">
+              <span>当前轮胎 <b id="curveTyreName">Semislicks</b></span>
+              <span>μ_ref <b id="curveMuRef">1.280</b></span>
+              <span>k <b id="curveK">0.188</b></span>
+              <span>FZ0 <b id="curveFz0">2494</b> N</span>
+            </div>
+          </div>
+
+          <div class="tyre-curve-body">
+            <div class="tyre-plot">
+              <svg id="tyreCurveSvg" viewBox="0 0 760 330" role="img" aria-label="轮胎摩擦系数 μ 随垂向载荷 Fz 变化的曲线">
+                <g id="tyreCurveGrid" class="tyre-curve-grid"></g>
+                <g id="tyreCurveAxes" class="tyre-curve-axes"></g>
+                <path id="tyreCurveFront" class="tyre-curve-line tyre-curve-line--front" fill="none"></path>
+                <path id="tyreCurveRear" class="tyre-curve-line tyre-curve-line--rear" fill="none"></path>
+                <g id="tyreCurvePoints" class="tyre-curve-points"></g>
+              </svg>
+              <div class="tyre-curve-legend">
+                <span><i class="tyre-legend-line tyre-legend-line--front"></i>前轴 μ(Fz)</span>
+                <span><i class="tyre-legend-line tyre-legend-line--rear"></i>后轴 μ(Fz)</span>
+                <span><i class="tyre-legend-dot"></i>空心 = 内侧，实心 = 外侧</span>
+              </div>
+            </div>
+
+            <aside class="tyre-curve-side">
+              <p class="tyre-panel-formula">μ(Fz) = μ_ref · (Fz / FZ0)<sup>−k</sup></p>
+              <div class="tyre-point-table">
+                <div class="tyre-point-row tyre-point-row--head">
+                  <span>轮位</span><span>Fz</span><span>μ</span>
+                </div>
+                <div class="tyre-point-row tyre-point-row--front" data-tyre-row="FL">
+                  <span><i>FL</i><span data-tyre-role="FL">前·外</span></span><b id="curveFLFz">4.70 kN</b><b id="curveFLMu">1.136</b>
+                </div>
+                <div class="tyre-point-row tyre-point-row--front" data-tyre-row="FR">
+                  <span><i>FR</i><span data-tyre-role="FR">前·内</span></span><b id="curveFRFz">2.54 kN</b><b id="curveFRMu">1.275</b>
+                </div>
+                <div class="tyre-point-row tyre-point-row--rear" data-tyre-row="RL">
+                  <span><i>RL</i><span data-tyre-role="RL">后·外</span></span><b id="curveRLFz">3.08 kN</b><b id="curveRLMu">1.230</b>
+                </div>
+                <div class="tyre-point-row tyre-point-row--rear" data-tyre-row="RR">
+                  <span><i>RR</i><span data-tyre-role="RR">后·内</span></span><b id="curveRRFz">2.27 kN</b><b id="curveRRMu">1.303</b>
+                </div>
+              </div>
+              <p class="tyre-width-note" id="tyreWidthNote">
+                AC WIDTH：前 215 / 后 215 mm。WIDTH 不进入这条 AC 载荷敏感幂律，因此前后曲线使用相同参数并重合。曲线只随轮荷变化，忽略轮胎滑移对 μ 的影响。
+              </p>
+              <p class="tyre-curve-note" id="tyreCurveNote">四个标记点按当前实际轮荷落在曲线上。</p>
+            </aside>
+          </div>
+        </section>
       </div>
-
-      <section class="panel tyre-curve-panel" aria-labelledby="tyreCurveTitle">
-        <div class="tyre-curve-head">
-          <div>
-            <div class="eyebrow">TYRE MODEL / POINTWISE μ–Fz</div>
-            <h2 id="tyreCurveTitle">轮胎抓地曲线</h2>
-          </div>
-          <div class="tyre-curve-summary">
-            <span>当前轮胎 <b id="curveTyreName">Semislicks</b></span>
-            <span>μ_ref <b id="curveMuRef">1.280</b></span>
-            <span>k <b id="curveK">0.188</b></span>
-            <span>FZ0 <b id="curveFz0">2494</b> N</span>
-          </div>
-        </div>
-
-        <div class="tyre-curve-body">
-          <div class="tyre-plot">
-            <svg id="tyreCurveSvg" viewBox="0 0 760 330" role="img" aria-label="轮胎摩擦系数 μ 随垂向载荷 Fz 变化的曲线">
-              <g id="tyreCurveGrid" class="tyre-curve-grid"></g>
-              <g id="tyreCurveAxes" class="tyre-curve-axes"></g>
-              <path id="tyreCurveFront" class="tyre-curve-line tyre-curve-line--front" fill="none"></path>
-              <path id="tyreCurveRear" class="tyre-curve-line tyre-curve-line--rear" fill="none"></path>
-              <g id="tyreCurvePoints" class="tyre-curve-points"></g>
-            </svg>
-            <div class="tyre-curve-legend">
-              <span><i class="tyre-legend-line tyre-legend-line--front"></i>前轴 μ(Fz)</span>
-              <span><i class="tyre-legend-line tyre-legend-line--rear"></i>后轴 μ(Fz)</span>
-              <span><i class="tyre-legend-dot"></i>空心 = 内侧，实心 = 外侧</span>
-            </div>
-          </div>
-
-          <aside class="tyre-curve-side">
-            <p class="tyre-panel-formula">μ(Fz) = μ_ref · (Fz / FZ0)<sup>−k</sup></p>
-            <div class="tyre-point-table">
-              <div class="tyre-point-row tyre-point-row--head">
-                <span>轮位</span><span>Fz</span><span>μ</span>
-              </div>
-              <div class="tyre-point-row tyre-point-row--front" data-tyre-row="FL">
-                <span><i>FL</i><span data-tyre-role="FL">前·外</span></span><b id="curveFLFz">4.70 kN</b><b id="curveFLMu">1.136</b>
-              </div>
-              <div class="tyre-point-row tyre-point-row--front" data-tyre-row="FR">
-                <span><i>FR</i><span data-tyre-role="FR">前·内</span></span><b id="curveFRFz">2.54 kN</b><b id="curveFRMu">1.275</b>
-              </div>
-              <div class="tyre-point-row tyre-point-row--rear" data-tyre-row="RL">
-                <span><i>RL</i><span data-tyre-role="RL">后·外</span></span><b id="curveRLFz">3.08 kN</b><b id="curveRLMu">1.230</b>
-              </div>
-              <div class="tyre-point-row tyre-point-row--rear" data-tyre-row="RR">
-                <span><i>RR</i><span data-tyre-role="RR">后·内</span></span><b id="curveRRFz">2.27 kN</b><b id="curveRRMu">1.303</b>
-              </div>
-            </div>
-            <p class="tyre-width-note" id="tyreWidthNote">
-              AC WIDTH：前 215 / 后 215 mm。WIDTH 不进入这条 AC 载荷敏感幂律，因此前后曲线使用相同参数并重合。曲线只随轮荷变化，忽略轮胎滑移对 μ 的影响。
-            </p>
-            <p class="tyre-curve-note" id="tyreCurveNote">四个标记点按当前实际轮荷落在曲线上。</p>
-          </aside>
-        </div>
-      </section>
 
       <section class="axle-section" aria-labelledby="axleTitle">
         <div class="section-heading axle-section-heading">
