@@ -1858,7 +1858,7 @@
     var note = $('tyreCurveNote');
 
     var width = 760;
-    var height = 330;
+    var height = 260;
     var margin = { left: 58, right: 22, top: 24, bottom: 48 };
     var plotWidth = width - margin.left - margin.right;
     var plotHeight = height - margin.top - margin.bottom;
@@ -2121,6 +2121,232 @@
       currentTyreName() + ' 轮胎 μ–Fz 曲线；' + pointSummary + '。');
   }
 
+  function renderTyreForceCurve(result) {
+    var svg = $('tyreForceSvg');
+    if (!svg) {
+      return;
+    }
+
+    var gridGroup = $('tyreForceGrid');
+    var axesGroup = $('tyreForceAxes');
+    var pointsGroup = $('tyreForcePoints');
+    var frontPath = $('tyreForceFrontLine');
+    var rearPath = $('tyreForceRearLine');
+    if (!gridGroup || !axesGroup || !pointsGroup) {
+      return;
+    }
+
+    var width = 760;
+    var height = 210;
+    var margin = { left: 66, right: 22, top: 20, bottom: 48 };
+    var plotWidth = width - margin.left - margin.right;
+    var plotHeight = height - margin.top - margin.bottom;
+    var tyreState = result.state;
+
+    function muAtLoad(load, axle) {
+      var muRef = axle === 'rear'
+        ? tyreState.tireRearMuRef
+        : tyreState.tireMuRef;
+      var fz0N = axle === 'rear'
+        ? tyreState.tireRearFz0N
+        : tyreState.tireFz0N;
+      var k = axle === 'rear'
+        ? tyreState.tireRearLoadSensitivityK
+        : tyreState.tireLoadSensitivityK;
+      if (!(load > 0) || !(fz0N > 0)) {
+        return 0;
+      }
+      return muRef * Math.pow(load / fz0N, -k);
+    }
+
+    function forceAtLoad(load, axle) {
+      return muAtLoad(load, axle) * load / 1000;
+    }
+
+    var samples = TYRE_POINT_DEFS.map(function (definition) {
+      var grip = result.wheelGrip[definition.code];
+      var isLeftWheel = definition.code === 'FL' || definition.code === 'RL';
+      var isOuter = result.outerSide !== 'none' &&
+        ((result.outerSide === 'left' && isLeftWheel) ||
+          (result.outerSide === 'right' && !isLeftWheel));
+      return {
+        definition: definition,
+        load: grip.load,
+        mu: grip.mu,
+        capacity: grip.capacity,
+        axle: definition.front ? 'front' : 'rear',
+        side: isOuter ? 'outer' : 'inner'
+      };
+    });
+
+    var positiveSamples = samples.filter(function (sample) {
+      return sample.load > 0;
+    });
+    var loadValues = positiveSamples.map(function (sample) {
+      return sample.load;
+    });
+    var minLoad = loadValues.length ? Math.min.apply(null, loadValues) : 1800;
+    var maxLoad = loadValues.length ? Math.max.apply(null, loadValues) : 4700;
+    var xMin = Math.max(400, Math.floor(minLoad * 0.82 / 100) * 100);
+    var xMax = Math.ceil(Math.max(maxLoad * 1.12, xMin + 1800) / 500) * 500;
+
+    var forceCandidates = [
+      forceAtLoad(xMin, 'front'),
+      forceAtLoad(xMax, 'front'),
+      forceAtLoad(xMin, 'rear'),
+      forceAtLoad(xMax, 'rear')
+    ].concat(samples.map(function (sample) {
+      return sample.capacity / 1000;
+    }));
+    var rawMax = Math.max.apply(null, forceCandidates.concat([0.5])) * 1.15;
+    var yStep = niceStep(rawMax / 4);
+    var yMax = Math.ceil(rawMax / yStep) * yStep;
+    if (!(yMax > 0)) {
+      yMax = yStep * 4;
+    }
+
+    function xPixel(load) {
+      return margin.left + ((load - xMin) / (xMax - xMin)) * plotWidth;
+    }
+
+    function yPixel(force) {
+      return margin.top + (1 - force / yMax) * plotHeight;
+    }
+
+    clearSvgGroup(gridGroup);
+    clearSvgGroup(axesGroup);
+    clearSvgGroup(pointsGroup);
+
+    if (maxLoad > minLoad) {
+      gridGroup.appendChild(createSvgElement('rect', {
+        x: xPixel(minLoad).toFixed(2),
+        y: margin.top,
+        width: Math.max(1, xPixel(maxLoad) - xPixel(minLoad)).toFixed(2),
+        height: plotHeight,
+        class: 'tyre-load-band'
+      }));
+    }
+
+    var yTicks = [];
+    for (var yValue = 0; yValue <= yMax + yStep * 0.001; yValue += yStep) {
+      yTicks.push(Number(yValue.toFixed(4)));
+    }
+    yTicks.forEach(function (tick) {
+      var py = yPixel(tick);
+      gridGroup.appendChild(createSvgElement('line', {
+        x1: margin.left,
+        y1: py.toFixed(2),
+        x2: width - margin.right,
+        y2: py.toFixed(2)
+      }));
+      axesGroup.appendChild(createSvgElement('text', {
+        x: margin.left - 9,
+        y: (py + 3.2).toFixed(2),
+        'text-anchor': 'end'
+      }, tick.toFixed(1)));
+    });
+
+    var xStep = niceStep((xMax - xMin) / 5);
+    for (var xValue = Math.ceil(xMin / xStep) * xStep;
+      xValue <= xMax + xStep * 0.001; xValue += xStep) {
+      var px = xPixel(xValue);
+      gridGroup.appendChild(createSvgElement('line', {
+        x1: px.toFixed(2),
+        y1: margin.top,
+        x2: px.toFixed(2),
+        y2: height - margin.bottom
+      }));
+      axesGroup.appendChild(createSvgElement('text', {
+        x: px.toFixed(2),
+        y: height - margin.bottom + 17,
+        'text-anchor': 'middle'
+      }, (xValue / 1000).toFixed(xStep >= 1000 ? 0 : 1)));
+    }
+
+    axesGroup.appendChild(createSvgElement('line', {
+      x1: margin.left,
+      y1: margin.top,
+      x2: margin.left,
+      y2: height - margin.bottom
+    }));
+    axesGroup.appendChild(createSvgElement('line', {
+      x1: margin.left,
+      y1: height - margin.bottom,
+      x2: width - margin.right,
+      y2: height - margin.bottom
+    }));
+    axesGroup.appendChild(createSvgElement('text', {
+      x: margin.left,
+      y: margin.top - 6,
+      'text-anchor': 'start',
+      class: 'tyre-axis-title'
+    }, 'μ × Fz (kN)'));
+    axesGroup.appendChild(createSvgElement('text', {
+      x: margin.left + plotWidth / 2,
+      y: height - 9,
+      'text-anchor': 'middle',
+      class: 'tyre-axis-title'
+    }, 'Fz / TYRE (kN)'));
+
+    var frontPathData = '';
+    var rearPathData = '';
+    var sampleCount = 100;
+    for (var i = 0; i <= sampleCount; i += 1) {
+      var sampleLoad = xMin + ((xMax - xMin) * i) / sampleCount;
+      var pxPath = xPixel(sampleLoad);
+      var frontPy = yPixel(forceAtLoad(sampleLoad, 'front'));
+      var rearPy = yPixel(forceAtLoad(sampleLoad, 'rear'));
+      frontPathData += (i === 0 ? 'M' : 'L') +
+        pxPath.toFixed(2) + ' ' + frontPy.toFixed(2);
+      rearPathData += (i === 0 ? 'M' : 'L') +
+        pxPath.toFixed(2) + ' ' + rearPy.toFixed(2);
+      if (i < sampleCount) {
+        frontPathData += ' ';
+        rearPathData += ' ';
+      }
+    }
+    if (frontPath) {
+      frontPath.setAttribute('d', frontPathData);
+    }
+    if (rearPath) {
+      rearPath.setAttribute('d', rearPathData);
+    }
+
+    var pointSummary = [];
+    samples.forEach(function (sample) {
+      if (!(sample.load > 0)) {
+        return;
+      }
+      var definition = sample.definition;
+      var pointX = xPixel(sample.load);
+      var pointY = yPixel(sample.capacity / 1000);
+      var marker = createSvgElement('circle', {
+        cx: pointX.toFixed(2),
+        cy: pointY.toFixed(2),
+        r: 4.6,
+        class: 'tyre-point-marker tyre-point-marker--' + definition.axle +
+          ' is-' + sample.side
+      });
+      marker.appendChild(createSvgElement('title', null,
+        definition.code + ' · Fz ' + (sample.load / 1000).toFixed(2) +
+        ' kN · μ ' + sample.mu.toFixed(3) +
+        ' · μ × Fz ' + (sample.capacity / 1000).toFixed(2) + ' kN'));
+      pointsGroup.appendChild(marker);
+      pointsGroup.appendChild(createSvgElement('text', {
+        x: (pointX + definition.labelDx).toFixed(2),
+        y: (pointY + definition.labelDy).toFixed(2),
+        'text-anchor': definition.anchor,
+        class: 'tyre-point-label tyre-point-label--' + definition.axle
+      }, definition.code));
+      pointSummary.push(definition.code + ' ' +
+        (sample.capacity / 1000).toFixed(2) + ' kN');
+    });
+
+    svg.setAttribute('aria-label',
+      '前轴与后轴轮胎 μ×Fz 抓地力随垂向载荷变化；当前 ' +
+      pointSummary.join('，') + '。');
+  }
+
   function updatePresetActive() {
     var buttons = document.querySelectorAll('[data-preset]');
     buttons.forEach(function (button) {
@@ -2146,6 +2372,7 @@
     updateWheelLabels(result);
     updatePresetActive();
     renderTyreCurve(result);
+    renderTyreForceCurve(result);
 
     if (scene) {
       scene.setModel(result);

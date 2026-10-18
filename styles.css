@@ -3330,7 +3330,7 @@ input:focus-visible {
   display: block;
   width: 100%;
   height: auto;
-  min-height: 206px;
+  min-height: 150px;
   overflow: visible;
 }
 
@@ -3509,6 +3509,50 @@ input:focus-visible {
 
 .tyre-wheel-chip.is-lifted {
   opacity: 0.42;
+}
+
+.tyre-force-plot {
+  margin-top: 10px;
+  padding: 9px 12px 8px;
+  border: 1px solid rgba(170, 201, 213, 0.1);
+  border-radius: 14px;
+  background:
+    radial-gradient(ellipse at 55% 30%, rgba(48, 121, 127, 0.08), transparent 60%),
+    rgba(4, 10, 13, 0.3);
+}
+
+.tyre-force-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 10px;
+  color: var(--faint);
+  font-family: var(--font-mono);
+}
+
+.tyre-force-head strong {
+  color: #b8cdd3;
+  font-size: 9.4px;
+  font-weight: 400;
+  letter-spacing: 0.04em;
+}
+
+.tyre-force-head span {
+  font-size: 8px;
+}
+
+.tyre-force-plot svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  min-height: 135px;
+  margin-top: 3px;
+  overflow: visible;
+}
+
+.tyre-force-legend {
+  padding-top: 5px;
 }
 
 .tyre-curve-side {

@@ -671,7 +671,7 @@
           </div>
 
           <div class="tyre-plot">
-            <svg id="tyreCurveSvg" viewBox="0 0 760 330" role="img" aria-label="轮胎摩擦系数 μ 随垂向载荷 Fz 变化的曲线">
+            <svg id="tyreCurveSvg" viewBox="0 0 760 260" role="img" aria-label="轮胎摩擦系数 μ 随垂向载荷 Fz 变化的曲线">
               <g id="tyreCurveGrid" class="tyre-curve-grid"></g>
               <g id="tyreCurveAxes" class="tyre-curve-axes"></g>
               <path id="tyreCurveFront" class="tyre-curve-line tyre-curve-line--front" fill="none"></path>
@@ -690,6 +690,26 @@
               <span class="tyre-wheel-chip tyre-wheel-chip--rear" data-tyre-row="RR"><i>RR</i><b id="curveRRMu">1.303</b></span>
             </div>
           </div>
+
+          <div class="tyre-force-plot" aria-label="前轴与后轴轮胎的 μ × Fz 抓地力随 Fz 变化">
+            <div class="tyre-force-head">
+              <strong>μ × Fz / FZ CURVE</strong>
+              <span>抓地力 vs 轮荷 · 四点 = 当前四轮</span>
+            </div>
+            <svg id="tyreForceSvg" viewBox="0 0 760 210" role="img" aria-label="前轴与后轴轮胎的 μ × Fz 抓地力随垂向载荷变化的曲线，四个标记点为当前轮胎状态">
+              <g id="tyreForceGrid" class="tyre-curve-grid"></g>
+              <g id="tyreForceAxes" class="tyre-curve-axes"></g>
+              <path id="tyreForceFrontLine" class="tyre-curve-line tyre-curve-line--front" fill="none"></path>
+              <path id="tyreForceRearLine" class="tyre-curve-line tyre-curve-line--rear" fill="none"></path>
+              <g id="tyreForcePoints" class="tyre-curve-points"></g>
+            </svg>
+            <div class="tyre-curve-legend tyre-force-legend">
+              <span><i class="tyre-legend-line tyre-legend-line--front"></i>前轴 μ×Fz</span>
+              <span><i class="tyre-legend-line tyre-legend-line--rear"></i>后轴 μ×Fz</span>
+              <span><i class="tyre-legend-dot"></i>空心 = 内侧，实心 = 外侧</span>
+            </div>
+          </div>
+
           <p class="tyre-curve-note" id="tyreCurveNote">四个标记点按当前实际轮荷落在曲线上。</p>
         </section>
       </div>
