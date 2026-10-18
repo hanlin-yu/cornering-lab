@@ -151,16 +151,17 @@ test('longitudinal G moves normal load between the axles and is allocated to dri
   );
   approx(
     braking.longitudinalDemand.front,
-    totalLong * 0.6,
+    totalLong * 0.72,
     1e-9,
-    '60 % front brake bias'
+    '72 % front brake bias'
   );
   approx(
     braking.longitudinalDemand.rear,
-    totalLong * 0.4,
+    totalLong * 0.28,
     1e-9,
-    '40 % rear brake bias'
+    '28 % rear brake bias'
   );
+  approx(braking.longitudinal.brakeBiasFront, 0.72, 1e-12, 'result brake bias');
 
   const accelerating = model.calculate({
     ...base,
@@ -174,6 +175,165 @@ test('longitudinal G moves normal load between the axles and is allocated to dri
     1e-9,
     'RWD rear drive force'
   );
+});
+
+test('AC brake share and drivetrain defaults come from the unpacked car data', () => {
+  assert.equal(model.DATA.driveType, 'RWD');
+  assert.equal(model.DATA.driveSource, 'drivetrain.ini [TRACTION] TYPE=RWD');
+  approx(model.DATA.brakeBiasFront, 0.72, 1e-12, 'brakes.ini front share');
+  approx(model.DATA.brakeBiasRear, 0.28, 1e-12, 'brakes.ini rear share');
+  assert.equal(model.DATA.cockpitBrakeAdjustable, false);
+
+  const r = model.calculate(model.cloneBaseState());
+  assert.equal(r.state.driveType, 'RWD');
+  approx(r.state.brakeBiasFront, 0.72, 1e-12, 'state brake bias');
+  assert.equal(r.longitudinal.driveType, 'RWD');
+  approx(r.longitudinal.driveBiasRear, 1, 1e-12, 'RWD rear share');
+  approx(r.longitudinal.brakeBiasRear, 0.28, 1e-12, 'rear brake share in result');
+});
+
+test('custom brake bias and FWD / RWD / AWD drive layouts change axle Fx', () => {
+  const base = model.cloneBaseState();
+  const totalLong = base.massKg * 0.3 * model.G;
+
+  const rwd = model.calculate({ ...base, longitudinalG: 0.3, driveType: 'RWD' });
+  const fwd = model.calculate({ ...base, longitudinalG: 0.3, driveType: 'FWD' });
+  const awd = model.calculate({ ...base, longitudinalG: 0.3, driveType: 'AWD' });
+
+  approx(rwd.longitudinalDemand.front, 0, 1e-9, 'RWD front drive');
+  approx(rwd.longitudinalDemand.rear, totalLong, 1e-9, 'RWD rear drive');
+  approx(fwd.longitudinalDemand.front, totalLong, 1e-9, 'FWD front drive');
+  approx(fwd.longitudinalDemand.rear, 0, 1e-9, 'FWD rear drive');
+  approx(awd.longitudinalDemand.front, totalLong / 2, 1e-9, 'AWD front drive');
+  approx(awd.longitudinalDemand.rear, totalLong / 2, 1e-9, 'AWD rear drive');
+  assert.equal(fwd.balance, 'understeer');
+  assert.equal(rwd.balance, 'oversteer');
+  assert.equal(awd.balance, 'understeer');
+
+  const rearBiased = model.calculate({
+    ...base,
+    lateralG: 0.4,
+    longitudinalG: -0.5,
+    brakeBiasFront: 0.60
+  });
+  const frontBiased = model.calculate({
+    ...base,
+    lateralG: 0.4,
+    longitudinalG: -0.5,
+    brakeBiasFront: 0.85
+  });
+  const brakeLong = base.massKg * (-0.5 * model.G);
+  approx(
+    rearBiased.longitudinalDemand.front,
+    brakeLong * 0.60,
+    1e-9,
+    'custom 60 % front brake'
+  );
+  approx(
+    frontBiased.longitudinalDemand.front,
+    brakeLong * 0.85,
+    1e-9,
+    'custom 85 % front brake'
+  );
+  assert.equal(rearBiased.balance, 'oversteer');
+  assert.equal(frontBiased.balance, 'understeer');
+});
+
+test('the four-car garage exposes the unpacked geometry, drivetrain and tyre defaults', () => {
+  assert.deepEqual(model.CAR_ORDER, ['gt86', 'mx5_nd', 'mx5_cup', 'subaru_22b']);
+
+  const gt86 = model.getCarProfile('gt86');
+  approx(gt86.massKg, 1285, 1e-12, 'GT86 mass');
+  approx(gt86.wheelbaseM, 2.570, 1e-12, 'GT86 wheelbase');
+  approx(gt86.frontWeight, 0.575, 1e-12, 'GT86 front weight');
+  approx(gt86.trackFrontM, 1.520, 1e-12, 'GT86 front track');
+  approx(gt86.trackRearM, 1.540, 1e-12, 'GT86 rear track');
+  approx(gt86.cgHeightM, 0.4226, 1e-9, 'GT86 CG height');
+  assert.equal(gt86.driveType, 'RWD');
+  approx(gt86.brakeBiasFront, 0.72, 1e-12, 'GT86 brake bias');
+  assert.equal(gt86.defaultCompoundId, 'semislicks');
+  assert.equal(Object.keys(gt86.tyreCompounds).length, 3);
+
+  const nd = model.getCarProfile('mx5_nd');
+  approx(nd.massKg, 1133, 1e-12, 'ND mass');
+  approx(nd.wheelbaseM, 2.310, 1e-12, 'ND wheelbase');
+  approx(nd.frontWeight, 0.53, 1e-12, 'ND front weight');
+  approx(nd.trackFrontM, 1.496, 1e-12, 'ND front track');
+  approx(nd.trackRearM, 1.503, 1e-12, 'ND rear track');
+  approx(nd.cgHeightM, 0.45815, 1e-9, 'ND CG height');
+  approx(nd.springFrontNm / 1000, 11.708, 1e-12, 'ND front spring');
+  approx(nd.springRearNm / 1000, 13.417, 1e-12, 'ND rear spring');
+  approx(nd.arbFrontNm / 1000, 19, 1e-12, 'ND front ARB');
+  approx(nd.arbRearNm / 1000, 4.8, 1e-12, 'ND rear ARB');
+  assert.equal(nd.driveType, 'RWD');
+  assert.equal(nd.defaultCompoundId, 'semislicks');
+  assert.equal(nd.tyreCompounds.street.fz0N, 2517);
+
+  const cup = model.getCarProfile('mx5_cup');
+  approx(cup.massKg, 983, 1e-12, 'Cup mass');
+  approx(cup.frontWeight, 0.54, 1e-12, 'Cup front weight');
+  approx(cup.springFrontNm / 1000, 51, 1e-12, 'Cup front spring');
+  approx(cup.springRearNm / 1000, 77, 1e-12, 'Cup rear spring');
+  approx(cup.brakeBiasFront, 0.75, 1e-12, 'Cup brake bias');
+  assert.equal(cup.defaultCompoundId, 'slicks');
+  assert.equal(Object.keys(cup.tyreCompounds).length, 1);
+  approx(cup.tyreCompounds.slicks.muRef, 1.46, 1e-12, 'Cup slick mu');
+  approx(cup.tyreCompounds.slicks.fz0N, 3045, 1e-12, 'Cup slick FZ0');
+  approx(cup.tyreCompounds.slicks.lsExpy, 0.7094, 1e-12, 'Cup slick LS_EXPY');
+
+  const subaru = model.getCarProfile('subaru_22b');
+  approx(subaru.massKg, 1297, 1e-12, '22B mass');
+  approx(subaru.wheelbaseM, 2.520, 1e-12, '22B wheelbase');
+  approx(subaru.frontWeight, 0.63, 1e-12, '22B front weight');
+  approx(subaru.trackFrontM, 1.48, 1e-12, '22B front track');
+  approx(subaru.cgHeightM, 0.4957, 1e-9, '22B CG height');
+  approx(subaru.springRearNm / 1000, 32.757, 1e-12, '22B rear spring');
+  approx(subaru.arbFrontNm / 1000, 18.009, 1e-12, '22B front ARB');
+  approx(subaru.arbRearNm / 1000, 16.193, 1e-12, '22B rear ARB');
+  approx(subaru.brakeBiasFront, 0.78, 1e-12, '22B brake bias');
+  assert.equal(subaru.driveType, 'AWD');
+  assert.equal(subaru.defaultCompoundId, 'semislicks');
+
+  assert.equal(model.getCarProfile('missing').id, 'gt86');
+
+  const cupState = model.createBaseState('mx5_cup');
+  assert.equal(cupState.carId, 'mx5_cup');
+  approx(cupState.tireMuRef, 1.46, 1e-12, 'Cup state mu');
+  approx(cupState.tireFz0N, 3045, 1e-12, 'Cup state FZ0');
+  approx(cupState.tireVerticalRateNm, 202410, 1e-12, 'Cup tyre vertical rate');
+  const ecoState = model.createBaseState('gt86', 'eco');
+  approx(ecoState.tireMuRef, 1.215, 1e-12, 'GT86 ECO state mu');
+  approx(ecoState.tireFz0N, 2274, 1e-12, 'GT86 ECO state FZ0');
+  approx(ecoState.tireVerticalRateNm, 263372, 1e-12, 'GT86 ECO vertical rate');
+});
+
+test('positive lateral G is a right turn and negative lateral G mirrors the loaded side', () => {
+  const base = model.cloneBaseState();
+  const right = model.calculate({ ...base, lateralG: 0.85 });
+  const left = model.calculate({ ...base, lateralG: -0.85 });
+
+  assert.equal(right.turnDirection, 'right');
+  assert.equal(left.turnDirection, 'left');
+  assert.equal(right.outerSide, 'left');
+  assert.equal(left.outerSide, 'right');
+  approx(right.grip.front, left.grip.front, 1e-9, 'front grip symmetry');
+  approx(right.grip.rear, left.grip.rear, 1e-9, 'rear grip symmetry');
+  approx(right.deltaPP, left.deltaPP, 1e-9, 'balance symmetry');
+  approx(right.frontLoadTransfer, left.frontLoadTransfer, 1e-9, 'transfer symmetry');
+  approx(right.cornerRadiusM, left.cornerRadiusM, 1e-9, 'radius symmetry');
+
+  approx(right.wheelLoads.FL, right.wheelLoads.frontOuter, 1e-9, 'right-turn FL is outer');
+  approx(right.wheelLoads.FR, right.wheelLoads.frontInner, 1e-9, 'right-turn FR is inner');
+  approx(left.wheelLoads.FL, left.wheelLoads.frontInner, 1e-9, 'left-turn FL is inner');
+  approx(left.wheelLoads.FR, left.wheelLoads.frontOuter, 1e-9, 'left-turn FR is outer');
+  assert.ok(right.wheelLoads.FL > right.wheelLoads.FR);
+  assert.ok(left.wheelLoads.FR > left.wheelLoads.FL);
+  approx(right.wheelGrip.FL.capacity, right.tyreGrip.frontOuter.capacity, 1e-9, 'wheel grip FL');
+  approx(left.wheelGrip.FR.capacity, left.tyreGrip.frontOuter.capacity, 1e-9, 'wheel grip FR');
+
+  const clamped = model.calculate({ ...base, lateralG: 3, longitudinalG: -3 });
+  approx(clamped.state.lateralG, 2, 1e-12, 'lateral clamp');
+  approx(clamped.state.longitudinalG, -2, 1e-12, 'longitudinal clamp');
 });
 
 test('combined lateral + longitudinal demand moves the balance away from the lateral-only case', () => {

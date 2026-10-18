@@ -240,6 +240,7 @@
     this.cogLabel = container.querySelector('[data-cog-label]');
     this.gLabel = container.querySelector('[data-g-label]');
     this.currentGArrowLength = 1.3;
+    this.tyreVerticalRate = DIM.tyreVerticalRate;
     this.loading = container.querySelector('.scene-loading');
     this.frontAxleZ = DIM.wheelbase / 2;
     this.rearAxleZ = -DIM.wheelbase / 2;
@@ -676,10 +677,44 @@
         root: root,
         spin: spin,
         tire: tire,
+        shadow: shadow,
         axleZ: axleZ,
         track: track
       };
     }, this);
+  };
+
+  CorneringChassisScene.prototype.setVehicleDimensions = function (profile) {
+    if (!this.body || !profile) {
+      return;
+    }
+
+    var baselineTrack = (DIM.trackFront + DIM.trackRear) / 2;
+    var profileTrack = (profile.trackFrontM + profile.trackRearM) / 2;
+    var scaleX = profileTrack / baselineTrack;
+    var scaleZ = profile.wheelbaseM / DIM.wheelbase;
+
+    this.body.scale.set(scaleX, 1, scaleZ);
+    this.frontAxleZ = profile.wheelbaseM / 2;
+    this.rearAxleZ = -this.frontAxleZ;
+
+    var self = this;
+    ['FL', 'FR', 'RL', 'RR'].forEach(function (wheelId) {
+      var wheel = self.corners[wheelId];
+      if (!wheel) {
+        return;
+      }
+      var track = wheel.axle === 'front' ? profile.trackFrontM : profile.trackRearM;
+      var axleZ = wheel.axle === 'front' ? self.frontAxleZ : self.rearAxleZ;
+      wheel.track = track;
+      wheel.axleZ = axleZ;
+      wheel.root.position.x = wheel.side * track / 2;
+      wheel.root.position.z = axleZ;
+      if (wheel.shadow) {
+        wheel.shadow.position.x = wheel.side * track / 2;
+        wheel.shadow.position.z = axleZ;
+      }
+    });
   };
 
   CorneringChassisScene.prototype.addHubAnchor = function (wheelId, name, x, y, z) {
@@ -942,9 +977,9 @@
     var magnitude = Math.hypot(lateralG, longitudinalG);
 
     if (magnitude > 1e-5) {
-      // G-force arrow points along the inertial force: outside of the turn and
-      // rearward under acceleration.
-      this.gDirection.set(lateralG / magnitude, 0, -longitudinalG / magnitude);
+      // Positive lateralG is a right turn, so its inertial force points left
+      // (outside of the turn). Acceleration pushes the arrow rearward.
+      this.gDirection.set(-lateralG / magnitude, 0, -longitudinalG / magnitude);
       this.gArrow.setDirection(this.gDirection);
     }
 
@@ -1027,18 +1062,24 @@
 
   CorneringChassisScene.prototype.setModel = function (result) {
     var loads = result.wheelLoads;
-    this.target.loads.FL = loads.frontInner;
-    this.target.loads.FR = loads.frontOuter;
-    this.target.loads.RL = loads.rearInner;
-    this.target.loads.RR = loads.rearOuter;
-    this.target.roll = clamp(result.rollAngleRad, 0, 0.16);
+    this.target.loads.FL = loads.FL;
+    this.target.loads.FR = loads.FR;
+    this.target.loads.RL = loads.RL;
+    this.target.loads.RR = loads.RR;
+    var turnSign = result.turnDirection === 'right' ? 1 :
+      result.turnDirection === 'left' ? -1 : 0;
+    this.target.roll = clamp(result.rollAngleRad, 0, 0.16) * turnSign;
     this.target.pitch = clamp(-result.state.longitudinalG * 0.022, -0.035, 0.035);
-    this.target.steer = clamp(result.state.lateralG * 0.105, 0, 0.17);
+    this.target.steer = clamp(result.state.lateralG * 0.105, -0.17, 0.17);
     this.target.lateralG = result.state.lateralG;
     this.target.longitudinalG = result.state.longitudinalG;
+    if (result.state.tireVerticalRateNm > 0) {
+      this.tyreVerticalRate = result.state.tireVerticalRateNm;
+    }
 
     var cogHeight = clamp(result.state.cgHeightM, 0.2, 0.7);
-    var cogZ = (result.state.frontWeight - 0.5) * result.state.wheelbaseM;
+    var bodyScaleZ = this.body.scale.z || 1;
+    var cogZ = (result.state.frontWeight - 0.5) * result.state.wheelbaseM / bodyScaleZ;
     this.cogAnchor.position.set(0, cogHeight - DIM.rollCenterY, cogZ);
   };
 
@@ -1194,20 +1235,21 @@
       self.visual.loads[wheelId] = damp(self.visual.loads[wheelId], self.target.loads[wheelId], 8, dt);
     });
 
-    // Chassis roll: a left-hand corner rolls the body toward the outside (+X).
-    // Positive rotation.x pitches the nose down, which is the braking case.
-    this.body.rotation.z = -this.visual.roll;
+    // Positive lateralG is a right turn: the body rolls left (positive
+    // rotation.z), while a left turn rolls right. Positive rotation.x pitches
+    // the nose down, which is the braking case.
+    this.body.rotation.z = this.visual.roll;
     this.body.rotation.x = this.visual.pitch;
     this.body.position.y = DIM.rollCenterY;
 
     ['FL', 'FR', 'RL', 'RR'].forEach(function (wheelId) {
       var wheel = self.corners[wheelId];
       var load = Math.max(0, self.visual.loads[wheelId]);
-      var deflection = clamp(load / DIM.tyreVerticalRate, 0, 0.048);
+      var deflection = clamp(load / self.tyreVerticalRate, 0, 0.048);
       wheel.root.position.y = DIM.wheelRadius - deflection;
       wheel.tire.scale.y = clamp(1 - deflection / DIM.wheelRadius, 0.86, 1);
       if (wheel.axle === 'front') {
-        wheel.root.rotation.y = -self.visual.steer;
+        wheel.root.rotation.y = self.visual.steer;
       }
     });
 

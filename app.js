@@ -6,23 +6,25 @@
     return;
   }
 
-  var state = model.cloneBaseState();
+  var currentCarId = model.DEFAULT_CAR_ID;
+  var currentCar = model.getCarProfile(currentCarId);
+  var TYRE_COMPOUNDS = currentCar.tyreCompounds;
+  var currentTyreId = currentCar.defaultCompoundId;
+  var state = model.createBaseState(currentCarId);
+  var PRESETS = {};
+  var lastSourceSignature = '';
   var scene = null;
   var autoNoteTimer = null;
-  var TYRE_COMPOUNDS = model.DATA.tyreCompounds;
-  var currentTyreId = model.DATA.defaultCompoundId;
   var SVG_NS = 'http://www.w3.org/2000/svg';
   var G_PAD = Object.freeze({
     width: 320,
-    height: 190,
-    left: 32,
-    right: 12,
-    top: 20,
-    bottom: 160,
-    longMin: -1.20,
-    longMax: 0.90,
-    latMin: 0.20,
-    latMax: 1.40
+    height: 320,
+    left: 36,
+    right: 14,
+    top: 16,
+    bottom: 286,
+    gMin: -2.0,
+    gMax: 2.0
   });
   var gTrail = [];
   var gLastTrailPoint = null;
@@ -33,27 +35,41 @@
   var gPlayStart = 0;
   var gPlayLastRender = 0;
   var G_PLAY_DURATION_MS = 6200;
-
-  var PRESETS = {
-    stock: {
-      springFrontNmm: 23,
-      springRearNmm: 18,
-      arbFrontNmm: 39,
-      arbRearNmm: 5
-    },
-    front: {
-      springFrontNmm: 30,
-      springRearNmm: 18,
-      arbFrontNmm: 60,
-      arbRearNmm: 5
-    },
-    rear: {
-      springFrontNmm: 23,
-      springRearNmm: 24,
-      arbFrontNmm: 39,
-      arbRearNmm: 40
-    }
+  var G_REGION_STEP = 0.1;
+  var G_REGION_INTERVAL_MS = 1000;
+  var G_REGION_COLORS = {
+    understeer: 'rgba(89, 217, 211, 0.24)',
+    oversteer: 'rgba(242, 178, 94, 0.26)',
+    limit: 'rgba(255, 99, 103, 0.055)'
   };
+  var gRegionsDirty = true;
+  var gRegionTimer = null;
+
+  function buildPresets(profile) {
+    var stock = {
+      springFrontNmm: profile.springFrontNm / 1000,
+      springRearNmm: profile.springRearNm / 1000,
+      arbFrontNmm: profile.arbFrontNm / 1000,
+      arbRearNmm: profile.arbRearNm / 1000
+    };
+    return {
+      stock: stock,
+      front: {
+        springFrontNmm: clamp(stock.springFrontNmm + 7, 8, 200),
+        springRearNmm: stock.springRearNmm,
+        arbFrontNmm: clamp(stock.arbFrontNmm + 21, 0, 80),
+        arbRearNmm: stock.arbRearNmm
+      },
+      rear: {
+        springFrontNmm: stock.springFrontNmm,
+        springRearNmm: clamp(stock.springRearNmm + 6, 8, 200),
+        arbFrontNmm: stock.arbFrontNmm,
+        arbRearNmm: clamp(stock.arbRearNmm + 35, 0, 60)
+      }
+    };
+  }
+
+  PRESETS = buildPresets(currentCar);
 
   var TYRE_POINT_DEFS = [
     {
@@ -262,6 +278,201 @@
     return compound ? compound.name : '—';
   }
 
+  function sortedCompounds() {
+    return Object.keys(TYRE_COMPOUNDS).map(function (id) {
+      return TYRE_COMPOUNDS[id];
+    }).sort(function (a, b) {
+      return a.index - b.index;
+    });
+  }
+
+  function populateTyreOptions() {
+    var select = $('tyreCompoundSelect');
+    if (!select) {
+      return;
+    }
+    select.innerHTML = '';
+    sortedCompounds().forEach(function (compound) {
+      var option = document.createElement('option');
+      option.value = compound.id;
+      option.textContent = compound.name + ' · ' + compound.short;
+      select.appendChild(option);
+    });
+    var custom = document.createElement('option');
+    custom.value = 'custom';
+    custom.textContent = '自定义 · CUSTOM';
+    select.appendChild(custom);
+    select.value = currentTyreId;
+  }
+
+  function populateCarOptions() {
+    var select = $('carSelect');
+    if (!select) {
+      return;
+    }
+    select.innerHTML = '';
+    model.CAR_ORDER.forEach(function (carId) {
+      var profile = model.getCarProfile(carId);
+      var option = document.createElement('option');
+      option.value = profile.id;
+      option.textContent = profile.name + ' · ' + profile.driveType;
+      select.appendChild(option);
+    });
+    select.value = currentCarId;
+  }
+
+  function updateVehicleBar() {
+    setText('barMass', String(Math.round(state.massKg)));
+    setText('barWheelbase', state.wheelbaseM.toFixed(3));
+    setText('barDrive', state.driveType);
+    setText('barTire',
+      currentTyreName() + ' · ' + Math.round(state.tireWidthM * 1000) + 'mm');
+  }
+
+  function updateSourcePanel() {
+    var list = $('sourceDataList');
+    if (!list) {
+      return;
+    }
+    var signature = [
+      currentCar.id,
+      currentTyreId,
+      state.driveType,
+      state.brakeBiasFront,
+      state.tireMuRef,
+      state.tireFz0N,
+      state.tireLoadSensitivityK,
+      state.tireWidthM,
+      state.tireRadiusM,
+      state.tireVerticalRateNm
+    ].join('|');
+    if (signature === lastSourceSignature) {
+      return;
+    }
+    lastSourceSignature = signature;
+
+    var profile = currentCar;
+    var selected = currentTyreId === 'custom' ? null : TYRE_COMPOUNDS[currentTyreId];
+    var defaultTire = profile.tyreCompounds[profile.defaultCompoundId];
+    var selectedName = selected ? selected.name : '自定义';
+    var compoundNames = sortedCompounds().map(function (compound) {
+      return compound.name;
+    }).join(' / ');
+    var widthMm = Math.round(state.tireWidthM * 1000);
+    var biasPct = Math.round(profile.brakeBiasFront * 100);
+    var selectedSection = selected ? selected.section : 'CUSTOM';
+    var selectedNote = selected
+      ? selectedSection + ' · μ_ref ' + state.tireMuRef.toFixed(3) +
+        ' · FZ0 ' + Math.round(state.tireFz0N) + ' N · LS_EXPY ' +
+        selected.lsExpy + ' · k ' + state.tireLoadSensitivityK.toFixed(4)
+      : 'CUSTOM · μ_ref ' + state.tireMuRef.toFixed(3) +
+        ' · k ' + state.tireLoadSensitivityK.toFixed(4) +
+        ' · FZ0 ' + Math.round(state.tireFz0N) + ' N';
+
+    setText('sourceCarTag', profile.shortName + ' / ' + profile.tag);
+    setText('sourceBadge', profile.carId + ' / ' + profile.sourceFile);
+    setText('sourcePath',
+      '…\\assettocorsa\\content\\cars\\' + profile.carId + '\\' + profile.sourceFile);
+    setText('sourceSummaryHint',
+      'AC解包 · ' + profile.shortName + ' · ' + selectedName +
+      ' · ' + state.driveType + ' · 制动 ' + biasPct + '/' + (100 - biasPct));
+
+    list.innerHTML = '';
+    [
+      ['质量', profile.massKg + ' kg', 'TOTALMASS · 含车手 / 无燃油'],
+      ['轴距', profile.wheelbaseM.toFixed(3) + ' m', 'WHEELBASE'],
+      ['前轴荷', (profile.frontWeight * 100).toFixed(1) + '%',
+        'CG_LOCATION = ' + profile.frontWeight.toFixed(3)],
+      ['轮距 F / R',
+        profile.trackFrontM.toFixed(3) + ' / ' + profile.trackRearM.toFixed(3) + ' m',
+        '[FRONT] / [REAR] TRACK'],
+      ['质心高度', profile.cgHeightM.toFixed(3) + ' m',
+        'RADIUS − BASEY（前后加权估算）'],
+      ['弹簧率 F / R',
+        (profile.springFrontNm / 1000).toFixed(1) + ' / ' +
+        (profile.springRearNm / 1000).toFixed(1) + ' N/mm',
+        'SPRING_RATE ' + profile.springFrontNm + ' / ' + profile.springRearNm + ' N/m'],
+      ['ARB F / R',
+        (profile.arbFrontNm / 1000).toFixed(1) + ' / ' +
+        (profile.arbRearNm / 1000).toFixed(1) + ' N/mm',
+        '[ARB] ' + profile.arbFrontNm + ' / ' + profile.arbRearNm + ' N/m · 轮端等效约定'],
+      ['制动前轴占比', biasPct + ' / ' + (100 - biasPct) + '%',
+        profile.brakeSource + ' · COCKPIT_ADJUSTABLE = ' +
+        (profile.cockpitBrakeAdjustable ? '1' : '0')],
+      ['驱动形式', profile.driveType, profile.driveSource],
+      ['轮胎胶料', compoundNames, '默认 ' + defaultTire.name],
+      ['当前胶料', selectedName, selectedNote],
+      ['轮胎宽度 F / R', widthMm + ' / ' + widthMm + ' mm',
+        'WIDTH；不进入 μ(Fz) 幂律'],
+      ['轮胎半径 / 垂向刚度',
+        state.tireRadiusM.toFixed(4) + ' m / ' +
+        Math.round(state.tireVerticalRateNm).toLocaleString('en-US') + ' N/m',
+        '垂向刚度仅用于 3D 轮胎压缩视觉'],
+      ['悬挂形式',
+        '前 ' + profile.frontSuspension.type + ' / 后 ' + profile.rearSuspension.type,
+        '3D 为通用简化示意，按轴距 / 轮距缩放']
+    ].forEach(function (row) {
+      var item = document.createElement('div');
+      var term = document.createElement('dt');
+      var description = document.createElement('dd');
+      var note = document.createElement('small');
+      term.textContent = row[0];
+      description.textContent = row[1];
+      note.textContent = row[2];
+      description.appendChild(document.createTextNode(' '));
+      description.appendChild(note);
+      item.appendChild(term);
+      item.appendChild(description);
+      list.appendChild(item);
+    });
+  }
+
+  function updateCarUi() {
+    setText('carTag', currentCar.tag);
+    setText('stockPresetLabel', currentCar.shortName + ' 原厂');
+    setText('frontSuspensionLabel', currentCar.frontSuspension.name);
+    setText('rearSuspensionLabel', currentCar.rearSuspension.name);
+    document.title = 'Cornering Lab · ' + currentCar.name;
+
+    var carSelect = $('carSelect');
+    if (carSelect && carSelect.value !== currentCarId) {
+      carSelect.value = currentCarId;
+    }
+    updateSourcePanel();
+    updateVehicleBar();
+  }
+
+  function loadCar(carId) {
+    var profile = model.getCarProfile(carId);
+    var previousLateralG = state.lateralG;
+    var previousLongitudinalG = state.longitudinalG;
+
+    currentCarId = profile.id;
+    currentCar = profile;
+    TYRE_COMPOUNDS = profile.tyreCompounds;
+    currentTyreId = profile.defaultCompoundId;
+    PRESETS = buildPresets(profile);
+    state = model.createBaseState(profile.id);
+    state.lateralG = previousLateralG;
+    state.longitudinalG = previousLongitudinalG;
+
+    stopGPlayback(false);
+    clearGTrail();
+    clearAutoNote();
+    lastSourceSignature = '';
+    populateTyreOptions();
+    updateCarUi();
+
+    if (scene && typeof scene.setVehicleDimensions === 'function') {
+      scene.setVehicleDimensions(profile);
+    }
+
+    markGRegionsDirty();
+    syncControls();
+    syncTyreUi();
+    render();
+  }
+
   function syncTyreUi() {
     var select = $('tyreCompoundSelect');
     if (select && select.value !== currentTyreId) {
@@ -274,7 +485,9 @@
     }
 
     var compound = TYRE_COMPOUNDS[currentTyreId];
-    var tag = currentTyreId === 'custom' ? 'CUSTOM' : compound ? compound.short : 'TYRE';
+    var tag = currentTyreId === 'custom'
+      ? 'CUSTOM'
+      : compound ? compound.name.toUpperCase() : 'TYRE';
 
     setText('compoundTag', tag);
     setText('tyreMuReadout', state.tireMuRef.toFixed(3));
@@ -284,17 +497,23 @@
     setText('curveMuRef', state.tireMuRef.toFixed(3));
     setText('curveK', state.tireLoadSensitivityK.toFixed(3));
     setText('curveFz0', String(Math.round(state.tireFz0N)));
+
+    var widthMm = Math.round(state.tireWidthM * 1000);
+    setText('tyreWidthNote',
+      'AC WIDTH：前 ' + widthMm + ' / 后 ' + widthMm +
+      ' mm。WIDTH 不进入这条 AC 载荷敏感幂律，因此前后曲线使用相同参数并重合。曲线只随轮荷变化，忽略轮胎滑移对 μ 的影响。');
+    updateVehicleBar();
   }
 
-  function gPadX(longitudinalG) {
+  function gPadX(lateralG) {
     var plotWidth = G_PAD.width - G_PAD.left - G_PAD.right;
-    var fraction = (longitudinalG - G_PAD.longMin) / (G_PAD.longMax - G_PAD.longMin);
+    var fraction = (lateralG - G_PAD.gMin) / (G_PAD.gMax - G_PAD.gMin);
     return G_PAD.left + fraction * plotWidth;
   }
 
-  function gPadY(lateralG) {
+  function gPadY(longitudinalG) {
     var plotHeight = G_PAD.bottom - G_PAD.top;
-    var fraction = (lateralG - G_PAD.latMin) / (G_PAD.latMax - G_PAD.latMin);
+    var fraction = (longitudinalG - G_PAD.gMin) / (G_PAD.gMax - G_PAD.gMin);
     return G_PAD.bottom - fraction * plotHeight;
   }
 
@@ -304,25 +523,34 @@
     }
     return points.map(function (point, index) {
       return (index === 0 ? 'M' : 'L') +
-        gPadX(point.long).toFixed(2) + ' ' + gPadY(point.lat).toFixed(2);
+        gPadX(point.lat).toFixed(2) + ' ' + gPadY(point.long).toFixed(2);
     }).join(' ');
   }
 
   function cornerPointAt(progress) {
     var s = clamp(progress, 0, 1);
-    var lat = G_PAD.latMin + 0.75 * Math.sin(Math.PI * Math.pow(s, 0.9));
+    var lat = 0.20 + 0.75 * Math.sin(Math.PI * Math.pow(s, 0.9));
     var long = -0.85 * Math.pow(1 - s, 1.6) + 0.45 * Math.pow(s, 2.2);
     return {
-      lat: clamp(lat, G_PAD.latMin, G_PAD.latMax),
-      long: clamp(long, G_PAD.longMin, G_PAD.longMax)
+      lat: clamp(lat, G_PAD.gMin, G_PAD.gMax),
+      long: clamp(long, G_PAD.gMin, G_PAD.gMax)
     };
   }
 
   function gPadPhase(lat, long) {
+    if (Math.abs(lat) < 0.02) {
+      if (long < -0.10) {
+        return '制动 / BRAKING';
+      }
+      if (long > 0.10) {
+        return '加速 / ACCELERATING';
+      }
+      return '直行 / STRAIGHT';
+    }
     if (long < -0.25) {
       return '入弯 / TURN-IN';
     }
-    if (lat >= 0.88 && Math.abs(long) <= 0.30) {
+    if (Math.abs(lat) >= 0.88 && Math.abs(long) <= 0.30) {
       return '弯心 / APEX';
     }
     if (long > 0.18) {
@@ -342,45 +570,50 @@
     clearSvgGroup(grid);
     clearSvgGroup(axes);
 
-    var xTicks = [-1.2, -0.8, -0.4, 0, 0.4, 0.8];
-    var yTicks = [0.2, 0.6, 1.0, 1.4];
+    var plotWidth = G_PAD.width - G_PAD.left - G_PAD.right;
+    var plotHeight = G_PAD.bottom - G_PAD.top;
 
-    xTicks.forEach(function (tick) {
-      var px = gPadX(tick);
+    axes.appendChild(createSvgElement('rect', {
+      x: G_PAD.left,
+      y: G_PAD.top,
+      width: plotWidth,
+      height: plotHeight,
+      class: 'g-pad-frame'
+    }));
+
+    for (var value = G_PAD.gMin; value <= G_PAD.gMax + 1e-6; value += 0.5) {
+      var rounded = Math.round(value);
+      var isWhole = Math.abs(value - rounded) < 1e-6;
+      var px = gPadX(value);
+      var py = gPadY(value);
+
       grid.appendChild(createSvgElement('line', {
         x1: px.toFixed(2),
         y1: G_PAD.top,
         x2: px.toFixed(2),
         y2: G_PAD.bottom
       }));
-      axes.appendChild(createSvgElement('text', {
-        x: px.toFixed(2),
-        y: G_PAD.bottom + 12,
-        'text-anchor': 'middle'
-      }, tick === 0 ? '0' : tick.toFixed(1)));
-    });
-
-    yTicks.forEach(function (tick) {
-      var py = gPadY(tick);
       grid.appendChild(createSvgElement('line', {
         x1: G_PAD.left,
         y1: py.toFixed(2),
         x2: G_PAD.width - G_PAD.right,
         y2: py.toFixed(2)
       }));
-      axes.appendChild(createSvgElement('text', {
-        x: G_PAD.left - 5,
-        y: (py + 2.6).toFixed(2),
-        'text-anchor': 'end'
-      }, tick.toFixed(1)));
-    });
 
-    axes.appendChild(createSvgElement('line', {
-      x1: G_PAD.left,
-      y1: G_PAD.bottom,
-      x2: G_PAD.width - G_PAD.right,
-      y2: G_PAD.bottom
-    }));
+      if (isWhole) {
+        axes.appendChild(createSvgElement('text', {
+          x: px.toFixed(2),
+          y: G_PAD.bottom + 13,
+          'text-anchor': 'middle'
+        }, rounded === 0 ? '0' : String(rounded)));
+        axes.appendChild(createSvgElement('text', {
+          x: G_PAD.left - 5,
+          y: (py + 3).toFixed(2),
+          'text-anchor': 'end'
+        }, rounded === 0 ? '0' : String(rounded)));
+      }
+    }
+
     axes.appendChild(createSvgElement('line', {
       x1: gPadX(0).toFixed(2),
       y1: G_PAD.top,
@@ -388,31 +621,117 @@
       y2: G_PAD.bottom,
       class: 'g-pad-zero-axis'
     }));
+    axes.appendChild(createSvgElement('line', {
+      x1: G_PAD.left,
+      y1: gPadY(0).toFixed(2),
+      x2: G_PAD.width - G_PAD.right,
+      y2: gPadY(0).toFixed(2),
+      class: 'g-pad-zero-axis'
+    }));
 
     axes.appendChild(createSvgElement('text', {
       x: G_PAD.left,
-      y: G_PAD.top - 7,
+      y: G_PAD.top - 4,
       'text-anchor': 'start',
       class: 'g-pad-axis-title'
-    }, 'LAT g ↑'));
+    }, 'LONG G ↑'));
     axes.appendChild(createSvgElement('text', {
       x: G_PAD.left,
       y: G_PAD.height - 3,
       'text-anchor': 'start',
       class: 'g-pad-axis-title'
-    }, '← BRAKE'));
+    }, '← LEFT'));
+    axes.appendChild(createSvgElement('text', {
+      x: G_PAD.left + plotWidth / 2,
+      y: G_PAD.height - 3,
+      'text-anchor': 'middle',
+      class: 'g-pad-axis-title'
+    }, 'LATERAL G'));
     axes.appendChild(createSvgElement('text', {
       x: G_PAD.width - G_PAD.right,
       y: G_PAD.height - 3,
       'text-anchor': 'end',
       class: 'g-pad-axis-title'
-    }, 'ACCEL →'));
+    }, 'RIGHT →'));
 
     var guidePoints = [];
     for (var i = 0; i <= 100; i += 1) {
       guidePoints.push(cornerPointAt(i / 100));
     }
     guide.setAttribute('d', gPadPath(guidePoints));
+  }
+
+  function buildGRegions() {
+    var canvas = $('gPadRegionCanvas');
+    if (!canvas) {
+      return;
+    }
+    var pixelRatio = 2;
+    canvas.width = G_PAD.width * pixelRatio;
+    canvas.height = G_PAD.height * pixelRatio;
+  }
+
+  function markGRegionsDirty() {
+    gRegionsDirty = true;
+  }
+
+  function refreshGRegions() {
+    var canvas = $('gPadRegionCanvas');
+    if (!canvas) {
+      return;
+    }
+    var context = canvas.getContext('2d');
+    if (!context) {
+      return;
+    }
+
+    gRegionsDirty = false;
+    var pixelRatio = 2;
+    context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+    context.clearRect(0, 0, G_PAD.width, G_PAD.height);
+
+    var count = Math.round((G_PAD.gMax - G_PAD.gMin) / G_REGION_STEP);
+
+    for (var row = 0; row < count; row += 1) {
+      var longLow = G_PAD.gMin + row * G_REGION_STEP;
+      var longHigh = longLow + G_REGION_STEP;
+      var y = gPadY(longHigh);
+      var cellHeight = gPadY(longLow) - y;
+      var longMid = (longLow + longHigh) / 2;
+
+      for (var column = 0; column < count; column += 1) {
+        var latLow = G_PAD.gMin + column * G_REGION_STEP;
+        var latHigh = latLow + G_REGION_STEP;
+        var latMid = (latLow + latHigh) / 2;
+
+        var sample = Object.assign({}, state, {
+          lateralG: latMid,
+          longitudinalG: longMid
+        });
+        var result = model.calculate(sample);
+        var category;
+        if (result.limitExceeded || result.axleLimitReached || result.wheelLift.any) {
+          category = 'limit';
+        } else {
+          category = result.balance;
+        }
+
+        var fill = G_REGION_COLORS[category];
+        if (!fill) {
+          continue;
+        }
+        var x = gPadX(latLow);
+        var cellWidth = gPadX(latHigh) - x;
+        context.fillStyle = fill;
+        context.fillRect(x, y, cellWidth + 0.08, cellHeight + 0.08);
+      }
+    }
+  }
+
+  function refreshGRegionsIfNeeded() {
+    if (gRegionsDirty) {
+      refreshGRegions();
+    }
   }
 
   function clearGTrail() {
@@ -455,12 +774,18 @@
     var magnitude = result.gVectorMagnitude;
     var phase = gPadPhase(lat, long);
     var transferKn = result.longitudinal.transfer / 1000;
+    var hasCorner = Math.abs(lat) >= 0.02;
+    var directionCn = result.turnDirection === 'right'
+      ? '右转'
+      : result.turnDirection === 'left' ? '左转' : '直行';
+    var directionEn = result.turnDirection === 'right'
+      ? 'RIGHT'
+      : result.turnDirection === 'left' ? 'LEFT' : 'STRAIGHT';
 
     recordGTrail(lat, long);
 
-    var px = gPadX(long);
-    var py = gPadY(lat);
-    var zeroX = gPadX(0);
+    var px = gPadX(lat);
+    var py = gPadY(long);
 
     var cursor = $('gPadCursor');
     var halo = $('gPadCursorHalo');
@@ -482,25 +807,30 @@
     }
     var projectionY = $('gPadProjectionY');
     if (projectionY) {
-      projectionY.setAttribute('x1', zeroX.toFixed(2));
+      projectionY.setAttribute('x1', G_PAD.left);
       projectionY.setAttribute('y1', py.toFixed(2));
       projectionY.setAttribute('x2', px.toFixed(2));
       projectionY.setAttribute('y2', py.toFixed(2));
     }
 
-    setText('ayValue', lat.toFixed(2));
+    setText('ayValue', formatSigned(lat, 2));
     setText('longGValue', formatSigned(long, 2));
     setText('gMagValue', magnitude.toFixed(2));
-    setText('radiusValue', Math.round(result.cornerRadiusM) + ' m');
+    setText('radiusValue', hasCorner
+      ? Math.round(result.cornerRadiusM) + ' m'
+      : '—');
     setText('gPhaseBadge', phase);
     setText('gLongTransferNote',
       '纵向转移 后轴 ' + formatSigned(transferKn, 2) + ' kN');
 
-    setText('sceneAyValue', lat.toFixed(2));
+    setText('sceneAyValue', formatSigned(lat, 2));
     setText('sceneLongGValue', formatSigned(long, 2));
     setText('sceneGTotalValue', magnitude.toFixed(2));
-    setText('sceneRadiusValue', String(Math.round(result.cornerRadiusM)));
-    setText('scenePhaseText', '左转 · ' + phase);
+    setText('sceneRadiusValue', hasCorner
+      ? String(Math.round(result.cornerRadiusM))
+      : '—');
+    setText('scenePhaseText',
+      result.turnDirection === 'straight' ? phase : directionCn + ' · ' + phase);
     setText('gVectorValue', magnitude.toFixed(2));
     setText('mobileGValue', magnitude.toFixed(2));
     setText('mobileLongGValue', formatSigned(long, 2));
@@ -512,8 +842,8 @@
     }
 
     pad.setAttribute('aria-label',
-      '二维 G 输入。侧向 ' + lat.toFixed(2) + ' g，纵向 ' +
-      formatSigned(long, 2) + ' g，合成 ' + magnitude.toFixed(2) +
+      '二维 G-G 输入。侧向 ' + formatSigned(lat, 2) + ' g（' + directionEn +
+      '），纵向 ' + formatSigned(long, 2) + ' g，合成 ' + magnitude.toFixed(2) +
       ' g，阶段 ' + phase + '。拖动或使用方向键调整。');
   }
 
@@ -615,12 +945,12 @@
       px = clamp(px, G_PAD.left, G_PAD.width - G_PAD.right);
       py = clamp(py, G_PAD.top, G_PAD.bottom);
 
-      var long = G_PAD.longMin +
+      var lat = G_PAD.gMin +
         ((px - G_PAD.left) / (G_PAD.width - G_PAD.left - G_PAD.right)) *
-        (G_PAD.longMax - G_PAD.longMin);
-      var lat = G_PAD.latMin +
+        (G_PAD.gMax - G_PAD.gMin);
+      var long = G_PAD.gMin +
         ((G_PAD.bottom - py) / (G_PAD.bottom - G_PAD.top)) *
-        (G_PAD.latMax - G_PAD.latMin);
+        (G_PAD.gMax - G_PAD.gMin);
 
       setGInput(Math.round(lat * 100) / 100, Math.round(long * 100) / 100);
     }
@@ -671,16 +1001,16 @@
 
       switch (event.key) {
         case 'ArrowLeft':
-          long -= step;
+          lat -= step;
           break;
         case 'ArrowRight':
-          long += step;
-          break;
-        case 'ArrowUp':
           lat += step;
           break;
+        case 'ArrowUp':
+          long += step;
+          break;
         case 'ArrowDown':
-          lat -= step;
+          long -= step;
           break;
         default:
           handled = false;
@@ -777,10 +1107,10 @@
 
   function updateWheelLabels(result) {
     var loadMap = {
-      FL: result.wheelLoads.frontInner,
-      FR: result.wheelLoads.frontOuter,
-      RL: result.wheelLoads.rearInner,
-      RR: result.wheelLoads.rearOuter
+      FL: result.wheelLoads.FL,
+      FR: result.wheelLoads.FR,
+      RL: result.wheelLoads.RL,
+      RR: result.wheelLoads.RR
     };
     var staticMap = {
       FL: result.staticLoads.frontWheel,
@@ -788,6 +1118,16 @@
       RL: result.staticLoads.rearWheel,
       RR: result.staticLoads.rearWheel
     };
+
+    function sideText(wheelId) {
+      if (result.outerSide === 'none') {
+        return '直行';
+      }
+      var isLeftWheel = wheelId === 'FL' || wheelId === 'RL';
+      var isOuter = (result.outerSide === 'left' && isLeftWheel) ||
+        (result.outerSide === 'right' && !isLeftWheel);
+      return isOuter ? '外侧' : '内侧';
+    }
 
     ['FL', 'FR', 'RL', 'RR'].forEach(function (wheelId) {
       var element = document.querySelector('[data-wheel-load="' + wheelId + '"]');
@@ -803,11 +1143,14 @@
         deltaElement.textContent = '(' + sign + Math.abs(changePct).toFixed(1) + '%)';
       }
 
+      var sideElement = document.querySelector('[data-wheel-side="' + wheelId + '"]');
+      if (sideElement) {
+        sideElement.textContent = sideText(wheelId);
+      }
+
       var label = document.querySelector('[data-wheel-label="' + wheelId + '"]');
       if (label) {
-        var lifted = wheelId === 'FL' ? result.wheelLift.front :
-          wheelId === 'RL' ? result.wheelLift.rear : false;
-        label.classList.toggle('is-lifted', lifted);
+        label.classList.toggle('is-lifted', loadMap[wheelId] <= 1e-6);
       }
     });
   }
@@ -992,6 +1335,18 @@
     updateWarnings(result);
   }
 
+  function updateLongitudinalUi() {
+    var biasPct = Math.round(state.brakeBiasFront * 100);
+    setText('brakeBiasReadout', '前 ' + biasPct + '% · 后 ' + (100 - biasPct) + '%');
+    setText('driveTypeChip', state.driveType);
+    setText('gDistributionNote', '制动 ' + biasPct + ' / ' + (100 - biasPct) + ' · ' + state.driveType);
+
+    var driveSelect = $('driveTypeSelect');
+    if (driveSelect && driveSelect.value !== state.driveType) {
+      driveSelect.value = state.driveType;
+    }
+  }
+
   function updateConditionAndSetup(result) {
     setText('sceneRollValue', result.rollAngleDeg.toFixed(2));
     setText('sceneFrontShareValue', (result.rollStiffness.frontShare * 100).toFixed(1));
@@ -1047,12 +1402,22 @@
     }
 
     var samples = TYRE_POINT_DEFS.map(function (definition) {
-      var grip = result.tyreGrip[definition.gripKey];
+      var grip = result.wheelGrip[definition.code];
+      var isLeftWheel = definition.code === 'FL' || definition.code === 'RL';
+      var isOuter = result.outerSide !== 'none' &&
+        ((result.outerSide === 'left' && isLeftWheel) ||
+          (result.outerSide === 'right' && !isLeftWheel));
+      var axleLabel = definition.front ? '前' : '后';
+      var role = result.outerSide === 'none'
+        ? axleLabel
+        : axleLabel + '·' + (isOuter ? '外' : '内');
       return {
         definition: definition,
         load: grip.load,
         mu: grip.mu,
-        capacity: grip.capacity
+        capacity: grip.capacity,
+        side: isOuter ? 'outer' : 'inner',
+        role: role
       };
     });
 
@@ -1206,6 +1571,12 @@
       if (row) {
         row.classList.toggle('is-lifted', isLifted);
       }
+      var roleElement = row
+        ? row.querySelector('[data-tyre-role="' + definition.code + '"]')
+        : null;
+      if (roleElement) {
+        roleElement.textContent = sample.role;
+      }
 
       if (isLifted) {
         return;
@@ -1218,7 +1589,7 @@
         cy: pointY.toFixed(2),
         r: 4.6,
         class: 'tyre-point-marker tyre-point-marker--' + definition.axle +
-          ' is-' + definition.side
+          ' is-' + sample.side
       });
       marker.appendChild(createSvgElement('title', null,
         definition.code + ' · Fz ' + (sample.load / 1000).toFixed(2) +
@@ -1272,6 +1643,7 @@
     var result = model.calculate(state);
 
     updateConditionAndSetup(result);
+    updateLongitudinalUi();
     updateGPad(result);
     updateBalance(result);
     updateCards(result);
@@ -1285,6 +1657,7 @@
 
     syncControls();
     syncTyreUi();
+    updateSourcePanel();
   }
 
   function applyStatePatch(patch, options) {
@@ -1292,6 +1665,7 @@
     Object.keys(patch).forEach(function (key) {
       state[key] = patch[key];
     });
+    markGRegionsDirty();
     if (opts.clearAuto !== false) {
       clearAutoNote();
     }
@@ -1317,6 +1691,7 @@
     value = clamp(value, min, max);
 
     state[key] = value;
+    markGRegionsDirty();
     clearAutoNote();
     syncControls();
     render();
@@ -1355,6 +1730,7 @@
         }
         pct = clamp(pct, 40, 66);
         state.frontWeight = pct / 100;
+        markGRegionsDirty();
         clearAutoNote();
         syncControls();
         render();
@@ -1362,6 +1738,30 @@
       frontWeightInput.addEventListener('input', function () { applyFrontWeight(false); });
       frontWeightInput.addEventListener('change', function () { applyFrontWeight(true); });
       frontWeightInput.addEventListener('blur', function () { applyFrontWeight(true); });
+    }
+
+    var carSelect = $('carSelect');
+    if (carSelect) {
+      carSelect.addEventListener('change', function () {
+        if (carSelect.value !== currentCarId) {
+          loadCar(carSelect.value);
+        }
+      });
+    }
+
+    var driveSelect = $('driveTypeSelect');
+    if (driveSelect) {
+      driveSelect.addEventListener('change', function () {
+        var nextType = driveSelect.value;
+        if (!model.DRIVE_MODES[nextType]) {
+          return;
+        }
+        state.driveType = nextType;
+        markGRegionsDirty();
+        clearAutoNote();
+        syncControls();
+        render();
+      });
     }
 
     var tyreSelect = $('tyreCompoundSelect');
@@ -1373,7 +1773,11 @@
           state.tireMuRef = compound.muRef;
           state.tireFz0N = compound.fz0N;
           state.tireLoadSensitivityK = compound.k;
+          state.tireVerticalRateNm = compound.verticalRateNm;
+          state.tireWidthM = compound.widthM;
+          state.tireRadiusM = compound.radiusM;
         }
+        markGRegionsDirty();
         clearAutoNote();
         syncTyreUi();
         render();
@@ -1396,6 +1800,7 @@
       autoButton.addEventListener('click', function () {
         var solution = model.solveNeutralFrontArb(state);
         state.arbFrontNmm = solution.value;
+        markGRegionsDirty();
         syncControls();
         render();
 
@@ -1428,8 +1833,12 @@
         stopGPlayback(false);
         clearGTrail();
         clearAutoNote();
-        state = model.cloneBaseState();
-        currentTyreId = model.DATA.defaultCompoundId;
+        state = model.createBaseState(currentCarId);
+        currentTyreId = currentCar.defaultCompoundId;
+        lastSourceSignature = '';
+        markGRegionsDirty();
+        populateTyreOptions();
+        updateCarUi();
         syncControls();
         syncTyreUi();
         render();
@@ -1487,6 +1896,9 @@
           render();
         }
       });
+      if (typeof scene.setVehicleDimensions === 'function') {
+        scene.setVehicleDimensions(currentCar);
+      }
       scene.setModel(model.calculate(state));
     } catch (error) {
       scene = null;
@@ -1497,6 +1909,17 @@
   function init() {
     buildGaugeTicks();
     buildGPad();
+    buildGRegions();
+    refreshGRegions();
+    if (!gRegionTimer) {
+      gRegionTimer = window.setInterval(
+        refreshGRegionsIfNeeded,
+        G_REGION_INTERVAL_MS
+      );
+    }
+    populateCarOptions();
+    populateTyreOptions();
+    updateCarUi();
     syncControls();
     bindControls();
     render();
@@ -1511,6 +1934,14 @@
   }
 
   window.addEventListener('beforeunload', function () {
+    if (gRegionTimer) {
+      window.clearInterval(gRegionTimer);
+      gRegionTimer = null;
+    }
+    if (gPlayFrame) {
+      window.cancelAnimationFrame(gPlayFrame);
+      gPlayFrame = null;
+    }
     if (scene && typeof scene.dispose === 'function') {
       scene.dispose();
     }

@@ -30,46 +30,89 @@
    * When DY_CURVE is present, AC uses that lookup instead of this power law.
    *
    * Two-dimensional G-G extension:
+   * - Positive lateralG is a right-hand turn; negative is a left-hand turn.
+   *   Load-transfer magnitudes use |a_y| and the loaded (outer) side follows
+   *   the turn direction.
    * - Longitudinal acceleration moves normal load between axles via m*ax*h/L.
-   * - RWD drive torque is assigned to the rear axle; braking uses a fixed
-   *   60/40 front/rear bias approximation. This is not a slip model: the
-   *   allocation still sets each axle's Fx and therefore its combined
-   *   utilisation, so it is kept as an explicit modelling assumption.
+   * - Drive torque follows the selected drivetrain layout (RWD / FWD / AWD).
+   * - Brake torque follows the selected front share (default 0.72, from
+   *   brakes.ini [DATA] FRONT_SHARE = 0.72; COCKPIT_ADJUSTABLE = 0).
+   *   This is not a slip model: the allocation still sets each axle's Fx and
+   *   therefore its combined utilisation, so it is an explicit assumption.
    * - Lateral and longitudinal demands are combined with a friction circle.
    * - Slip angle and slip ratio are NOT modelled; mu is load-sensitive only.
    */
-  var TYRE_COMPOUNDS = {
-    eco: {
-      id: 'eco',
-      name: 'ECO',
-      short: 'ECO',
-      section: '[ECO] FRONT / REAR',
-      muRef: 1.215,
-      fz0N: 2274,
-      lsExpy: 0.7227,
-      k: 1 - 0.7227
-    },
-    street: {
-      id: 'street',
-      name: 'Street',
-      short: 'STREET',
-      section: '[STREET] FRONT_1 / REAR_1',
-      muRef: 1.23,
-      fz0N: 2274,
-      lsExpy: 0.8227,
-      k: 1 - 0.8227
-    },
-    semislicks: {
-      id: 'semislicks',
-      name: 'Semislicks',
-      short: 'SEMISLICKS',
-      section: '[SEMISLICKS] FRONT_2 / REAR_2',
-      muRef: 1.28,
-      fz0N: 2494,
-      lsExpy: 0.8119,
-      k: 1 - 0.8119
-    }
+  function makeTyreCompound(
+    id, index, name, short, section, widthM, radiusM, verticalRateNm,
+    fz0N, muRef, lsExpy
+  ) {
+    return {
+      id: id,
+      index: index,
+      name: name,
+      short: short,
+      section: section,
+      widthM: widthM,
+      radiusM: radiusM,
+      verticalRateNm: verticalRateNm,
+      fz0N: fz0N,
+      muRef: muRef,
+      lsExpy: lsExpy,
+      k: 1 - lsExpy
+    };
+  }
+
+  var GT86_TYRE_COMPOUNDS = {
+    eco: makeTyreCompound(
+      'eco', 0, 'ECO', 'E', '[ECO] FRONT / REAR',
+      0.215, 0.3126, 263372, 2274, 1.215, 0.7227
+    ),
+    street: makeTyreCompound(
+      'street', 1, 'Street', 'ST', '[STREET] FRONT_1 / REAR_1',
+      0.215, 0.3126, 263372, 2274, 1.23, 0.8227
+    ),
+    semislicks: makeTyreCompound(
+      'semislicks', 2, 'Semislicks', 'SM', '[SEMISLICKS] FRONT_2 / REAR_2',
+      0.215, 0.3126, 262593, 2494, 1.28, 0.8119
+    )
   };
+
+  var MX5_ND_TYRE_COMPOUNDS = {
+    street: makeTyreCompound(
+      'street', 0, 'Street', 'ST', '[STREET] FRONT / REAR',
+      0.205, 0.30815, 233568, 2517, 1.23, 0.8243
+    ),
+    semislicks: makeTyreCompound(
+      'semislicks', 1, 'Semislicks', 'SM', '[SEMISLICKS] FRONT_1 / REAR_1',
+      0.205, 0.30815, 228695, 2737, 1.28, 0.8135
+    )
+  };
+
+  var MX5_CUP_TYRE_COMPOUNDS = {
+    slicks: makeTyreCompound(
+      'slicks', 0, 'Slicks', 'H', '[SLICKS] FRONT / REAR',
+      0.215, 0.305, 202410, 3045, 1.46, 0.7094
+    )
+  };
+
+  var SUBARU_22B_TYRE_COMPOUNDS = {
+    street: makeTyreCompound(
+      'street', 0, 'Street', 'ST', '[STREET] FRONT / REAR',
+      0.235, 0.310, 263038, 2590, 1.23, 0.8341
+    ),
+    semislicks: makeTyreCompound(
+      'semislicks', 1, 'Semislicks', 'SM', '[SEMISLICKS] FRONT_1 / REAR_1',
+      0.235, 0.310, 277119, 2860, 1.28, 0.84
+    )
+  };
+
+  var TYRE_COMPOUNDS = GT86_TYRE_COMPOUNDS;
+
+  var DRIVE_MODES = Object.freeze({
+    RWD: { front: 0, rear: 1 },
+    FWD: { front: 1, rear: 0 },
+    AWD: { front: 0.5, rear: 0.5 }
+  });
 
   var DATA = Object.freeze({
     carId: 'ks_toyota_gt86',
@@ -80,6 +123,13 @@
     compound: 'Semislicks',
     defaultCompoundId: 'semislicks',
     tyreCompounds: TYRE_COMPOUNDS,
+    driveType: 'RWD',
+    driveTypes: ['RWD', 'FWD', 'AWD'],
+    driveSource: 'drivetrain.ini [TRACTION] TYPE=RWD',
+    brakeBiasFront: 0.72,
+    brakeBiasRear: 0.28,
+    brakeBiasSource: 'brakes.ini [DATA] FRONT_SHARE = 0.72',
+    cockpitBrakeAdjustable: false,
     totalMassKg: 1285,
     wheelbaseM: 2.570,
     cgLocationFront: 0.575,
@@ -101,23 +151,166 @@
       'AC/CSP convention interpreted as an equivalent wheel-level rate: 39000 N/m = 39.0 N/mm.'
   });
 
-  var BASE_STATE = Object.freeze({
-    massKg: DATA.totalMassKg,
-    wheelbaseM: DATA.wheelbaseM,
-    frontWeight: DATA.cgLocationFront,
-    cgHeightM: DATA.cgHeightM,
-    trackFrontM: DATA.trackFrontM,
-    trackRearM: DATA.trackRearM,
-    springFrontNmm: DATA.springFrontNm / 1000,
-    springRearNmm: DATA.springRearNm / 1000,
-    arbFrontNmm: DATA.arbFrontRaw / 1000,
-    arbRearNmm: DATA.arbRearRaw / 1000,
-    tireMuRef: DATA.tyreDyRef,
-    tireFz0N: DATA.tyreFz0N,
-    tireLoadSensitivityK: 1 - DATA.tyreLsExpy,
-    lateralG: 0.85,
-    longitudinalG: 0
-  });
+  var CAR_PROFILES = {
+    gt86: {
+      id: 'gt86',
+      carId: DATA.carId,
+      name: 'Toyota GT86',
+      shortName: 'GT86',
+      tag: 'ZN6',
+      massKg: DATA.totalMassKg,
+      wheelbaseM: DATA.wheelbaseM,
+      frontWeight: DATA.cgLocationFront,
+      trackFrontM: DATA.trackFrontM,
+      trackRearM: DATA.trackRearM,
+      cgHeightM: DATA.cgHeightM,
+      baseYFrontM: DATA.baseYFrontM,
+      baseYRearM: DATA.baseYRearM,
+      springFrontNm: DATA.springFrontNm,
+      springRearNm: DATA.springRearNm,
+      arbFrontNm: DATA.arbFrontRaw,
+      arbRearNm: DATA.arbRearRaw,
+      tyreCompounds: GT86_TYRE_COMPOUNDS,
+      defaultCompoundId: DATA.defaultCompoundId,
+      brakeBiasFront: DATA.brakeBiasFront,
+      cockpitBrakeAdjustable: DATA.cockpitBrakeAdjustable,
+      driveType: DATA.driveType,
+      brakeSource: DATA.brakeBiasSource,
+      driveSource: DATA.driveSource,
+      frontSuspension: { type: 'STRUT', name: '麦弗逊支柱' },
+      rearSuspension: { type: 'DWB', name: '双叉臂' },
+      sourcePath: DATA.sourcePath,
+      sourceFile: DATA.sourceFile
+    },
+    mx5_nd: {
+      id: 'mx5_nd',
+      carId: 'ks_mazda_mx5_nd',
+      name: 'Mazda MX-5 ND',
+      shortName: 'MX-5 ND',
+      tag: 'ND',
+      massKg: 1133,
+      wheelbaseM: 2.310,
+      frontWeight: 0.53,
+      trackFrontM: 1.496,
+      trackRearM: 1.503,
+      cgHeightM: 0.30815 - (-0.15),
+      baseYFrontM: -0.15,
+      baseYRearM: -0.15,
+      springFrontNm: 11708,
+      springRearNm: 13417,
+      arbFrontNm: 19000,
+      arbRearNm: 4800,
+      tyreCompounds: MX5_ND_TYRE_COMPOUNDS,
+      defaultCompoundId: 'semislicks',
+      brakeBiasFront: 0.72,
+      cockpitBrakeAdjustable: false,
+      driveType: 'RWD',
+      brakeSource: 'brakes.ini [DATA] FRONT_SHARE = 0.72',
+      driveSource: 'drivetrain.ini [TRACTION] TYPE=RWD',
+      frontSuspension: { type: 'DWB', name: '双叉臂' },
+      rearSuspension: { type: 'DWB', name: '双叉臂' },
+      sourcePath: 'assettocorsa/content/cars/ks_mazda_mx5_nd',
+      sourceFile: 'data.acd'
+    },
+    mx5_cup: {
+      id: 'mx5_cup',
+      carId: 'ks_mazda_mx5_cup',
+      name: 'Mazda MX-5 Cup',
+      shortName: 'MX-5 Cup',
+      tag: 'CUP',
+      massKg: 983,
+      wheelbaseM: 2.310,
+      frontWeight: 0.54,
+      trackFrontM: 1.525,
+      trackRearM: 1.510,
+      cgHeightM: 0.305 - (-0.15),
+      baseYFrontM: -0.15,
+      baseYRearM: -0.15,
+      springFrontNm: 51000,
+      springRearNm: 77000,
+      arbFrontNm: 39000,
+      arbRearNm: 4800,
+      tyreCompounds: MX5_CUP_TYRE_COMPOUNDS,
+      defaultCompoundId: 'slicks',
+      brakeBiasFront: 0.75,
+      cockpitBrakeAdjustable: false,
+      driveType: 'RWD',
+      brakeSource: 'brakes.ini [DATA] FRONT_SHARE = 0.75',
+      driveSource: 'drivetrain.ini [TRACTION] TYPE=RWD',
+      frontSuspension: { type: 'DWB', name: '双叉臂' },
+      rearSuspension: { type: 'DWB', name: '双叉臂' },
+      sourcePath: 'assettocorsa/content/cars/ks_mazda_mx5_cup',
+      sourceFile: 'data.acd'
+    },
+    subaru_22b: {
+      id: 'subaru_22b',
+      carId: 'ddm_subaru_22b',
+      name: 'Subaru Impreza 22B',
+      shortName: '22B STi',
+      tag: '22B',
+      massKg: 1297,
+      wheelbaseM: 2.520,
+      frontWeight: 0.63,
+      trackFrontM: 1.480,
+      trackRearM: 1.500,
+      cgHeightM: 0.4957,
+      baseYFrontM: -0.19,
+      baseYRearM: -0.18,
+      springFrontNm: 35640,
+      springRearNm: 32757,
+      arbFrontNm: 18009,
+      arbRearNm: 16193,
+      tyreCompounds: SUBARU_22B_TYRE_COMPOUNDS,
+      defaultCompoundId: 'semislicks',
+      brakeBiasFront: 0.78,
+      cockpitBrakeAdjustable: false,
+      driveType: 'AWD',
+      brakeSource: 'brakes.ini [DATA] FRONT_SHARE = 0.78',
+      driveSource: 'drivetrain.ini [TRACTION] TYPE=AWD',
+      frontSuspension: { type: 'STRUT', name: '麦弗逊支柱' },
+      rearSuspension: { type: 'STRUT', name: '麦弗逊支柱' },
+      sourcePath: 'assettocorsa/content/cars/ddm_subaru_22b',
+      sourceFile: 'data.acd'
+    }
+  };
+
+  var CAR_ORDER = ['gt86', 'mx5_nd', 'mx5_cup', 'subaru_22b'];
+  var DEFAULT_CAR_ID = 'gt86';
+
+  function getCarProfile(carId) {
+    return CAR_PROFILES[carId] || CAR_PROFILES[DEFAULT_CAR_ID];
+  }
+
+  function createBaseState(carId, compoundId) {
+    var profile = getCarProfile(carId);
+    var compound = profile.tyreCompounds[compoundId] ||
+      profile.tyreCompounds[profile.defaultCompoundId];
+    return {
+      carId: profile.id,
+      massKg: profile.massKg,
+      wheelbaseM: profile.wheelbaseM,
+      frontWeight: profile.frontWeight,
+      cgHeightM: profile.cgHeightM,
+      trackFrontM: profile.trackFrontM,
+      trackRearM: profile.trackRearM,
+      springFrontNmm: profile.springFrontNm / 1000,
+      springRearNmm: profile.springRearNm / 1000,
+      arbFrontNmm: profile.arbFrontNm / 1000,
+      arbRearNmm: profile.arbRearNm / 1000,
+      tireMuRef: compound.muRef,
+      tireFz0N: compound.fz0N,
+      tireLoadSensitivityK: compound.k,
+      tireVerticalRateNm: compound.verticalRateNm,
+      tireWidthM: compound.widthM,
+      tireRadiusM: compound.radiusM,
+      brakeBiasFront: profile.brakeBiasFront,
+      driveType: profile.driveType,
+      lateralG: 0.85,
+      longitudinalG: 0
+    };
+  }
+
+  var BASE_STATE = Object.freeze(createBaseState(DEFAULT_CAR_ID));
 
   var LIMITS = Object.freeze({
     massKg: [900, 1900],
@@ -133,23 +326,20 @@
     tireMuRef: [0.60, 1.80],
     tireFz0N: [1500, 4000],
     tireLoadSensitivityK: [0, 0.80],
-    lateralG: [0.20, 1.40],
-    longitudinalG: [-1.20, 0.90]
+    brakeBiasFront: [0.30, 0.90],
+    lateralG: [-2.00, 2.00],
+    longitudinalG: [-2.00, 2.00]
   });
 
   var NEUTRAL_BAND_PP = 0.35;
   var REFERENCE_SPEED_KMH = 100;
-  // GT86 is rear-drive. Under braking the fixed brake bias is approximated
-  // as 60 % front / 40 % rear because brake.ini is not part of this model.
-  var BRAKE_BIAS_FRONT = 0.60;
-  var DRIVE_BIAS_REAR = 1.0;
 
   function clamp(value, min, max) {
     return Math.min(max, Math.max(min, value));
   }
 
-  function cloneBaseState() {
-    return Object.assign({}, BASE_STATE);
+  function cloneBaseState(carId, compoundId) {
+    return createBaseState(carId, compoundId);
   }
 
   function toFiniteNumber(value, fallback) {
@@ -163,6 +353,10 @@
       var bounds = LIMITS[key];
       s[key] = clamp(toFiniteNumber(s[key], BASE_STATE[key]), bounds[0], bounds[1]);
     });
+    var driveType = String(s.driveType || BASE_STATE.driveType).toUpperCase();
+    s.driveType = Object.prototype.hasOwnProperty.call(DRIVE_MODES, driveType)
+      ? driveType
+      : BASE_STATE.driveType;
     return s;
   }
 
@@ -172,8 +366,15 @@
     var mass = s.massKg;
     var ay = s.lateralG * G;
     var ax = s.longitudinalG * G;
-    var totalLateralForce = mass * ay;
+    var totalLateralForce = mass * Math.abs(ay);
     var totalLongitudinalForce = mass * ax;
+    var turnDirection = Math.abs(s.lateralG) < 0.02
+      ? 'straight'
+      : s.lateralG > 0 ? 'right' : 'left';
+    var outerSide = turnDirection === 'straight'
+      ? 'none'
+      : s.lateralG > 0 ? 'left' : 'right';
+    var isRightTurn = s.lateralG >= 0;
 
     var frontStaticAxle = mass * G * s.frontWeight;
     var rearStaticAxle = mass * G * (1 - s.frontWeight);
@@ -196,11 +397,12 @@
     var totalRollStiffness = frontRollStiffness + rearRollStiffness;
     var frontRollShare = totalRollStiffness > 0 ? frontRollStiffness / totalRollStiffness : 0.5;
 
-    var rollMoment = mass * ay * s.cgHeightM;
+    var rollMoment = totalLateralForce * s.cgHeightM;
     var rollAngleRad = totalRollStiffness > 0 ? rollMoment / totalRollStiffness : 0;
     var rollAngleDeg = rollAngleRad * 180 / Math.PI;
 
-    // Left-hand turn: positive lateral acceleration means load goes to the right.
+    // Load-transfer magnitudes are independent of turn direction. "Outer"
+    // means the outside wheel of the current turn.
     var frontLoadTransfer = frontRollShare * rollMoment / s.trackFrontM;
     var rearLoadTransfer = (1 - frontRollShare) * rollMoment / s.trackRearM;
 
@@ -230,22 +432,36 @@
       rearInner: tyreAtLoad(rearInnerLoad)
     };
 
+    var wheelGrip = {
+      FL: isRightTurn ? tyreGrip.frontOuter : tyreGrip.frontInner,
+      FR: isRightTurn ? tyreGrip.frontInner : tyreGrip.frontOuter,
+      RL: isRightTurn ? tyreGrip.rearOuter : tyreGrip.rearInner,
+      RR: isRightTurn ? tyreGrip.rearInner : tyreGrip.rearOuter
+    };
+    var actualWheelLoads = {
+      FL: isRightTurn ? frontOuterLoadRaw : frontInnerLoad,
+      FR: isRightTurn ? frontInnerLoad : frontOuterLoadRaw,
+      RL: isRightTurn ? rearOuterLoadRaw : rearInnerLoad,
+      RR: isRightTurn ? rearInnerLoad : rearOuterLoadRaw
+    };
+
     var frontGrip = tyreGrip.frontOuter.capacity + tyreGrip.frontInner.capacity;
     var rearGrip = tyreGrip.rearOuter.capacity + tyreGrip.rearInner.capacity;
 
     var frontLateralDemand = totalLateralForce * s.frontWeight;
     var rearLateralDemand = totalLateralForce * (1 - s.frontWeight);
 
-    // Longitudinal force allocation: RWD drive goes fully to the rear; braking
-    // uses the fixed 60/40 front/rear bias approximation documented above.
+    // Longitudinal force allocation follows the selected drivetrain layout
+    // under drive and the selected front share under braking.
+    var driveMode = DRIVE_MODES[s.driveType] || DRIVE_MODES.RWD;
     var frontLongitudinalDemand;
     var rearLongitudinalDemand;
     if (totalLongitudinalForce >= 0) {
-      frontLongitudinalDemand = totalLongitudinalForce * (1 - DRIVE_BIAS_REAR);
-      rearLongitudinalDemand = totalLongitudinalForce * DRIVE_BIAS_REAR;
+      frontLongitudinalDemand = totalLongitudinalForce * driveMode.front;
+      rearLongitudinalDemand = totalLongitudinalForce * driveMode.rear;
     } else {
-      frontLongitudinalDemand = totalLongitudinalForce * BRAKE_BIAS_FRONT;
-      rearLongitudinalDemand = totalLongitudinalForce * (1 - BRAKE_BIAS_FRONT);
+      frontLongitudinalDemand = totalLongitudinalForce * s.brakeBiasFront;
+      rearLongitudinalDemand = totalLongitudinalForce * (1 - s.brakeBiasFront);
     }
 
     // The friction circle makes the resultant demand the correct utilisation
@@ -272,7 +488,9 @@
     var rearWheelLift = rearInnerLoadRaw <= 1e-6;
 
     var referenceSpeedMs = REFERENCE_SPEED_KMH / 3.6;
-    var cornerRadiusM = ay > 0 ? (referenceSpeedMs * referenceSpeedMs) / ay : Infinity;
+    var cornerRadiusM = Math.abs(ay) > 0
+      ? (referenceSpeedMs * referenceSpeedMs) / Math.abs(ay)
+      : Infinity;
 
     var warnings = [];
     if (frontWheelLift || rearWheelLift) {
@@ -324,10 +542,13 @@
 
     var staticWheelLoadFront = frontStaticWheel;
     var staticWheelLoadRear = rearStaticWheel;
-    var tyreDeflectionFrontOuter = Math.max(0, frontOuterLoadRaw) / DATA.tyreVerticalRateNm;
-    var tyreDeflectionFrontInner = frontInnerLoad / DATA.tyreVerticalRateNm;
-    var tyreDeflectionRearOuter = Math.max(0, rearOuterLoadRaw) / DATA.tyreVerticalRateNm;
-    var tyreDeflectionRearInner = rearInnerLoad / DATA.tyreVerticalRateNm;
+    var tyreVerticalRate = s.tireVerticalRateNm > 0
+      ? s.tireVerticalRateNm
+      : DATA.tyreVerticalRateNm;
+    var tyreDeflectionFrontOuter = Math.max(0, frontOuterLoadRaw) / tyreVerticalRate;
+    var tyreDeflectionFrontInner = frontInnerLoad / tyreVerticalRate;
+    var tyreDeflectionRearOuter = Math.max(0, rearOuterLoadRaw) / tyreVerticalRate;
+    var tyreDeflectionRearInner = rearInnerLoad / tyreVerticalRate;
 
     return {
       state: s,
@@ -336,6 +557,8 @@
       totalLateralForce,
       totalLongitudinalForce,
       mass,
+      turnDirection,
+      outerSide,
       staticLoads: {
         frontAxle: frontStaticAxle,
         rearAxle: rearStaticAxle,
@@ -353,8 +576,11 @@
       longitudinal: {
         transfer: longitudinalTransfer,
         rearShare: rearAxleLoad > 0 ? rearAxleLoad / (frontAxleLoad + rearAxleLoad) : 0.5,
-        driveBiasRear: DRIVE_BIAS_REAR,
-        brakeBiasFront: BRAKE_BIAS_FRONT
+        driveType: s.driveType,
+        driveBiasFront: driveMode.front,
+        driveBiasRear: driveMode.rear,
+        brakeBiasFront: s.brakeBiasFront,
+        brakeBiasRear: 1 - s.brakeBiasFront
       },
       springRates: {
         frontNmm: frontWheelRate,
@@ -376,7 +602,12 @@
       frontLoadTransfer,
       rearLoadTransfer,
       tyreGrip,
+      wheelGrip,
       wheelLoads: {
+        FL: actualWheelLoads.FL,
+        FR: actualWheelLoads.FR,
+        RL: actualWheelLoads.RL,
+        RR: actualWheelLoads.RR,
         frontOuter: frontOuterLoadRaw,
         frontInner: frontInnerLoad,
         rearOuter: rearOuterLoadRaw,
@@ -498,9 +729,15 @@
   return {
     G: G,
     DATA: DATA,
+    CARS: CAR_PROFILES,
+    CAR_ORDER: CAR_ORDER,
+    DEFAULT_CAR_ID: DEFAULT_CAR_ID,
     BASE_STATE: BASE_STATE,
     LIMITS: LIMITS,
+    DRIVE_MODES: DRIVE_MODES,
     NEUTRAL_BAND_PP: NEUTRAL_BAND_PP,
+    getCarProfile: getCarProfile,
+    createBaseState: createBaseState,
     cloneBaseState: cloneBaseState,
     normaliseState: normaliseState,
     calculate: calculate,

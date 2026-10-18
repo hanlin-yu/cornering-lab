@@ -4,9 +4,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="dark">
-  <meta name="description" content="GT86 ZN6 3D 底盘、二维 G-G 输入、CoG/G 力显示、侧倾刚度与前后轴抓地力平衡实验台。">
+  <meta name="description" content="多车型 Assetto Corsa 解包数据、3D 底盘、二维 G-G 输入、CoG/G 力显示、侧倾刚度与前后轴抓地力平衡实验台。">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23081014'/%3E%3Ccircle cx='32' cy='32' r='18' fill='none' stroke='%235ad7d2' stroke-width='3'/%3E%3Cpath d='M14 32h12M38 32h12' stroke='%235ad7d2' stroke-width='3' stroke-linecap='round'/%3E%3Ccircle cx='32' cy='32' r='4' fill='%23eafbfc'/%3E%3C/svg%3E">
-  <title>GT86 Cornering Lab · 3D 底盘与抓地平衡</title>
+  <title>Cornering Lab · 多车型 3D 底盘与抓地平衡</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -27,17 +27,34 @@
       <div class="brand-copy">
         <div class="eyebrow">
           <span class="pulse-dot" aria-hidden="true"></span>
-          ASSETTO CORSA DATA · KS_TOYOTA_GT86
+          ASSETTO CORSA DATA · MULTI-CAR LAB
         </div>
-        <h1>Cornering Lab <span>GT86 / 底盘 · 抓地平衡</span></h1>
+        <h1>Cornering Lab <span>多车型 / 底盘 · 抓地平衡</span></h1>
       </div>
     </div>
     <div class="header-meta" aria-label="模型说明">
-      <span class="tag">ZN6</span>
+      <span class="tag" id="carTag">ZN6</span>
       <span class="tag" id="compoundTag">SEMISLICKS</span>
       <span class="tag tag--quiet">STEADY STATE · 2D G-G</span>
     </div>
   </header>
+
+  <section class="vehicle-bar" aria-labelledby="vehicleBarLabel">
+    <div class="vehicle-bar-title">
+      <span class="eyebrow" id="vehicleBarLabel">GARAGE / VEHICLE</span>
+      <strong>车型选择</strong>
+    </div>
+    <label class="vehicle-select">
+      <span class="sr-only">选择车型</span>
+      <select id="carSelect"></select>
+    </label>
+    <div class="vehicle-specs" aria-label="当前车型数据">
+      <span><small>MASS</small><b id="barMass">1285</b> kg</span>
+      <span><small>WHEELBASE</small><b id="barWheelbase">2.570</b> m</span>
+      <span><small>DRIVE</small><b id="barDrive">RWD</b></span>
+      <span><small>TYRE</small><b id="barTire">Semislicks</b></span>
+    </div>
+  </section>
 
   <main class="workspace">
     <aside class="panel control-panel" aria-labelledby="controlsTitle">
@@ -75,9 +92,10 @@
           id="gPad"
           tabindex="0"
           role="application"
-          aria-label="二维 G 输入：横向为纵向 G，纵向为侧向 G。拖动光标或使用方向键调节。"
+          aria-label="二维 G-G 输入：横轴为侧向 G，纵轴为纵向 G。拖动光标或使用方向键调节。"
         >
-          <svg id="gPadSvg" viewBox="0 0 320 190" aria-hidden="true">
+          <canvas id="gPadRegionCanvas" class="g-pad-region-canvas" aria-hidden="true"></canvas>
+          <svg id="gPadSvg" viewBox="0 0 320 320" aria-hidden="true">
             <defs>
               <linearGradient id="gPadGuideGradient" x1="0" y1="1" x2="1" y2="0">
                 <stop offset="0" stop-color="#5ad7d2" stop-opacity=".7"/>
@@ -104,9 +122,54 @@
           <button class="g-clear-button" id="gClearTrailButton" type="button">清轨迹</button>
         </div>
 
+        <div class="g-region-key" aria-label="预计算 G-G 区域图例">
+          <span><i class="g-region-swatch is-understeer"></i>推头区</span>
+          <span><i class="g-region-swatch is-oversteer"></i>甩尾区</span>
+          <span><i class="g-region-swatch is-limit"></i>超限</span>
+          <span class="g-region-refresh">0.1 g 网格 · 1 s</span>
+        </div>
+
         <p class="g-pad-note">
-          拖动设置 G；回放从入弯制动到出弯加速。仅模拟载荷转移与荷重 μ。
+          拖动设置 G；回放从入弯制动到出弯加速。底色为当前调校的预计算区域（空白为中性）。
           <span id="gLongTransferNote">纵向转移 后轴 +0.00 kN</span>
+          <span id="gDistributionNote">制动 72 / 28 · RWD</span>
+        </p>
+      </section>
+
+      <section class="control-section distribution-section" aria-labelledby="distributionTitle">
+        <div class="section-heading">
+          <h3 id="distributionTitle">纵向分配 <span>BRAKE / DRIVE</span></h3>
+          <span class="distribution-chip" id="driveTypeChip">RWD</span>
+        </div>
+
+        <div class="distribution-row">
+          <label for="brakeBiasRange">制动前轴占比 <span>BRAKE BIAS</span></label>
+          <strong id="brakeBiasReadout">前 72% · 后 28%</strong>
+        </div>
+        <input
+          class="range range--neutral"
+          id="brakeBiasRange"
+          data-param="brakeBiasFront"
+          type="range"
+          min="0.30"
+          max="0.90"
+          step="0.01"
+          value="0.72"
+          aria-label="制动前轴占比滑杆"
+        >
+        <div class="range-scale" aria-hidden="true"><span>前 30%</span><span>60 / 40</span><span>前 90%</span></div>
+
+        <div class="drive-type-field">
+          <label for="driveTypeSelect">驱动形式 <span>DRIVETRAIN</span></label>
+          <select id="driveTypeSelect">
+            <option value="RWD" selected>RWD · 后驱</option>
+            <option value="FWD">FWD · 前驱</option>
+            <option value="AWD">AWD · 50 / 50</option>
+          </select>
+        </div>
+
+        <p class="distribution-note">
+          AC 原车：brakes.ini <b>FRONT_SHARE = 0.72</b>，drivetrain.ini <b>TYPE = RWD</b>，COCKPIT_ADJUSTABLE = 0；上方为分析用自定义。制动占比影响制动阶段，驱动形式影响加速阶段。
         </p>
       </section>
 
@@ -319,7 +382,7 @@
         </div>
         <div class="preset-grid">
           <button class="preset-button" type="button" data-preset="stock">
-            <span>GT86 原厂</span>
+            <span id="stockPresetLabel">GT86 原厂</span>
             <small>STOCK</small>
           </button>
           <button class="preset-button" type="button" data-preset="front">
@@ -357,13 +420,13 @@
             <input data-param="cgHeightM" type="number" min="0.20" max="0.70" step="0.005" value="0.4226" inputmode="decimal">
           </label>
         </div>
-        <button class="text-button" id="resetAllButton" type="button">恢复全部 GT86 数据</button>
+        <button class="text-button" id="resetAllButton" type="button">恢复该车型原始数据</button>
       </details>
 
       <div class="source-badge">
         <span class="source-badge-label">DATA SOURCE</span>
-        <code>ks_toyota_gt86 / data.acd</code>
-        <span>只读解包 · 含车手 / 无燃油</span>
+        <code id="sourceBadge">ks_toyota_gt86 / data.acd</code>
+        <span>AC data.acd 只读解包 · 含车手 / 无燃油</span>
       </div>
     </aside>
 
@@ -389,7 +452,7 @@
                   <div class="scene-subline">
                     <span class="mini-pill mini-pill--front"><i></i>前轴</span>
                     <span class="mini-pill mini-pill--rear"><i></i>后轴</span>
-                    <span class="scene-turn" id="scenePhaseText">左转 · 中段 / MID</span>
+                    <span class="scene-turn" id="scenePhaseText">右转 · 弯中 / MID</span>
                   </div>
                 </div>
                 <div class="scene-actions">
@@ -413,25 +476,25 @@
                 <div class="wheel-label wheel-label--front" data-wheel-label="FL">
                   <span class="wheel-label-code">FL</span>
                   <span class="wheel-label-load"><b data-wheel-load="FL">—</b><small>kN</small></span>
-                  <span class="wheel-label-side">内侧</span>
+                  <span class="wheel-label-side" data-wheel-side="FL">外侧</span>
                   <span class="wheel-label-delta" data-wheel-delta="FL">—</span>
                 </div>
                 <div class="wheel-label wheel-label--front" data-wheel-label="FR">
                   <span class="wheel-label-code">FR</span>
                   <span class="wheel-label-load"><b data-wheel-load="FR">—</b><small>kN</small></span>
-                  <span class="wheel-label-side">外侧</span>
+                  <span class="wheel-label-side" data-wheel-side="FR">内侧</span>
                   <span class="wheel-label-delta" data-wheel-delta="FR">—</span>
                 </div>
                 <div class="wheel-label wheel-label--rear" data-wheel-label="RL">
                   <span class="wheel-label-code">RL</span>
                   <span class="wheel-label-load"><b data-wheel-load="RL">—</b><small>kN</small></span>
-                  <span class="wheel-label-side">内侧</span>
+                  <span class="wheel-label-side" data-wheel-side="RL">外侧</span>
                   <span class="wheel-label-delta" data-wheel-delta="RL">—</span>
                 </div>
                 <div class="wheel-label wheel-label--rear" data-wheel-label="RR">
                   <span class="wheel-label-code">RR</span>
                   <span class="wheel-label-load"><b data-wheel-load="RR">—</b><small>kN</small></span>
-                  <span class="wheel-label-side">外侧</span>
+                  <span class="wheel-label-side" data-wheel-side="RR">内侧</span>
                   <span class="wheel-label-delta" data-wheel-delta="RR">—</span>
                 </div>
               </div>
@@ -602,19 +665,19 @@
                 <span>轮位</span><span>Fz</span><span>μ</span>
               </div>
               <div class="tyre-point-row tyre-point-row--front" data-tyre-row="FL">
-                <span><i>FL</i>前·内</span><b id="curveFLFz">2.54 kN</b><b id="curveFLMu">1.275</b>
+                <span><i>FL</i><span data-tyre-role="FL">前·外</span></span><b id="curveFLFz">4.70 kN</b><b id="curveFLMu">1.136</b>
               </div>
               <div class="tyre-point-row tyre-point-row--front" data-tyre-row="FR">
-                <span><i>FR</i>前·外</span><b id="curveFRFz">4.70 kN</b><b id="curveFRMu">1.136</b>
+                <span><i>FR</i><span data-tyre-role="FR">前·内</span></span><b id="curveFRFz">2.54 kN</b><b id="curveFRMu">1.275</b>
               </div>
               <div class="tyre-point-row tyre-point-row--rear" data-tyre-row="RL">
-                <span><i>RL</i>后·内</span><b id="curveRLFz">2.27 kN</b><b id="curveRLMu">1.303</b>
+                <span><i>RL</i><span data-tyre-role="RL">后·外</span></span><b id="curveRLFz">3.08 kN</b><b id="curveRLMu">1.230</b>
               </div>
               <div class="tyre-point-row tyre-point-row--rear" data-tyre-row="RR">
-                <span><i>RR</i>后·外</span><b id="curveRRFz">3.08 kN</b><b id="curveRRMu">1.230</b>
+                <span><i>RR</i><span data-tyre-role="RR">后·内</span></span><b id="curveRRFz">2.27 kN</b><b id="curveRRMu">1.303</b>
               </div>
             </div>
-            <p class="tyre-width-note">
+            <p class="tyre-width-note" id="tyreWidthNote">
               AC WIDTH：前 215 / 后 215 mm。WIDTH 不进入这条 AC 载荷敏感幂律，因此前后曲线使用相同参数并重合。曲线只随轮荷变化，忽略轮胎滑移对 μ 的影响。
             </p>
             <p class="tyre-curve-note" id="tyreCurveNote">四个标记点按当前实际轮荷落在曲线上。</p>
@@ -638,7 +701,7 @@
                 <span class="axle-dot"></span>
                 <div>
                   <h3 id="frontAxleTitle">前轴 <span>FRONT AXLE</span></h3>
-                  <p>麦弗逊支柱 · 弹簧 + ARB</p>
+                  <p><span id="frontSuspensionLabel">麦弗逊支柱</span> · 弹簧 + ARB</p>
                 </div>
               </div>
               <span class="reserve-badge" id="frontReserveValue">+2.43 kN 余量</span>
@@ -695,7 +758,7 @@
                 <span class="axle-dot"></span>
                 <div>
                   <h3 id="rearAxleTitle">后轴 <span>REAR AXLE</span></h3>
-                  <p>双叉臂 · 弹簧 + ARB</p>
+                  <p><span id="rearSuspensionLabel">双叉臂</span> · 弹簧 + ARB</p>
                 </div>
               </div>
               <span class="reserve-badge" id="rearReserveValue">+2.20 kN 余量</span>
@@ -753,39 +816,30 @@
           <div class="source-summary">
             <span class="eyebrow">MODEL / PROVENANCE</span>
             <span class="source-summary-title">数据来源、公式与模型边界</span>
-            <span class="source-summary-hint">AC解包 · 轮胎 μ(Fz) · 弹簧/ARB 为轮端等效</span>
+            <span class="source-summary-hint" id="sourceSummaryHint">AC解包 · 轮胎 μ(Fz) · 4 款车型</span>
           </div>
           <span class="summary-toggle" aria-hidden="true"></span>
         </summary>
 
         <div class="source-content">
           <div class="source-block">
-            <h4>原始数据 <span>GT86 / ZN6</span></h4>
-            <dl class="data-list">
-              <div><dt>质量</dt><dd>1285 kg <small>TOTALMASS · 含车手 / 无燃油</small></dd></div>
-              <div><dt>轴距</dt><dd>2.570 m <small>WHEELBASE</small></dd></div>
-              <div><dt>前轴荷</dt><dd>57.5% <small>CG_LOCATION = 0.575</small></dd></div>
-              <div><dt>轮距 F / R</dt><dd>1.520 / 1.540 m <small>[FRONT] / [REAR] TRACK</small></dd></div>
-              <div><dt>质心高度</dt><dd>0.423 m <small>RADIUS 0.3126 − BASEY (−0.110)</small></dd></div>
-              <div><dt>弹簧率 F / R</dt><dd>23.0 / 18.0 N/mm <small>SPRING_RATE 23000 / 18000 N/m</small></dd></div>
-              <div><dt>ARB F / R</dt><dd>39.0 / 5.0 N/mm <small>[ARB] 39000 / 5000 N/m · CSP 轮端约定</small></dd></div>
-              <div><dt>轮胎胶料</dt><dd>ECO / Street / Semislicks <small>[ECO] / [STREET] / [SEMISLICKS] · 默认 INDEX = 2</small></dd></div>
-              <div><dt>默认胶料参数</dt><dd>μ_ref 1.28 · FZ0 2494 N · LS_EXPY 0.8119 <small>Semislicks [FRONT_2]/[REAR_2] · 半径 0.3126 m</small></dd></div>
-              <div><dt>轮胎宽度 F / R</dt><dd>215 / 215 mm <small>WIDTH；不进入本车所用 μ(Fz) 幂律</small></dd></div>
-              <div><dt>轮胎垂向刚度</dt><dd>262,593 N/m <small>仅用于 3D 轮胎压缩视觉</small></dd></div>
-            </dl>
-            <code class="source-path">…\assettocorsa\content\cars\ks_toyota_gt86\data.acd</code>
+            <h4>原始数据 <span id="sourceCarTag">GT86 / ZN6</span></h4>
+            <dl class="data-list" id="sourceDataList"></dl>
+            <code class="source-path" id="sourcePath">…\assettocorsa\content\cars\ks_toyota_gt86\data.acd</code>
           </div>
 
           <div class="source-block">
             <h4>机制 <span>MECHANISM</span></h4>
             <p class="model-copy">
-              弹簧与 ARB 先合并为各轴轮端刚度，再形成前后侧倾刚度分配，把横向载荷转移分到左右轮。纵向 G 通过质心高度与轴距在前后轴之间搬移垂直载荷；驱动力全部分配给后轴，制动力近似按前 60% / 后 40% 分配。每只轮胎用 AC 的载荷敏感幂律，从实际 Fz 得到 μ 与 Fy,max；把每轴侧向与纵向需求合成为合力，与该轴总抓地力比较即得联合利用率。
+              弹簧与 ARB 先合并为各轴轮端刚度，再形成前后侧倾刚度分配，把横向载荷转移分到左右轮。纵向 G 通过质心高度与轴距在前后轴之间搬移垂直载荷；驱动力按所选的 RWD / FWD / AWD 分配，制动力默认取所选车型 AC brakes.ini 的前轴占比，也可在调校台调整。每只轮胎用 AC 的载荷敏感幂律，从实际 Fz 得到 μ 与 Fy,max；把每轴侧向与纵向需求合成为合力，与该轴总抓地力比较即得联合利用率。
             </p>
-            <pre class="formula-block"><code>Kφ = (k_spring + k_ARB) · t² / 2
+            <pre class="formula-block"><code>lateralG > 0 = 右转 · lateralG < 0 = 左转
+Kφ = (k_spring + k_ARB) · t² / 2
 share_F = Kφ_F / (Kφ_F + Kφ_R)
-ΔFz_lat,F = share_F · m · a_y · h / t_F
+ΔFz_lat,F = share_F · m · |a_y| · h / t_F
 ΔFz_long  = m · a_x · h / L
+brake_F = 当前车型 brakes.ini FRONT_SHARE
+drive_F / drive_R = RWD 0/100 · FWD 100/0 · AWD 50/50
 k = 1 − LS_EXPY
 μ(Fz) = μ_ref · (Fz / FZ0)^(−k)
 Fy,max = μ(Fz) · Fz
@@ -794,13 +848,13 @@ F_res,axle = √(Fy,demand² + Fx,demand²)
 U = F_res,axle / Fgrip,axle</code></pre>
             <h4>边界与假设 <span>LIMITS</span></h4>
             <ul class="assumption-list">
-              <li>稳态、平地；G-G 输入允许侧向 + 纵向组合；不含瞬态、差速器锁止和空气动力学。</li>
+              <li>稳态、平地；G-G 输入允许侧向 + 纵向组合（正侧向 = 右转）；不含瞬态、差速器锁止和空气动力学。</li>
               <li><b>仅模拟底盘重心 / 载荷转移与载荷敏感 μ(Fz)</b>；忽略轮胎滑移角、滑移率、侧偏刚度及轮胎松弛对 μ 的影响。</li>
-              <li>轮胎曲线使用 AC 解包的 <b>FZ0 / DY_REF / LS_EXPY</b>；WIDTH 不进入 μ(Fz)。未建模 Camber / Toe / 温度 / 压力。</li>
+              <li>轮胎曲线使用 AC 解包的 <b>FZ0 / DY_REF / LS_EXPY</b>；所载 4 款车的数据均无 <b>DY_CURVE</b>，因此使用上式幂律；WIDTH 不进入 μ(Fz)。未建模 Camber / Toe / 温度 / 压力。</li>
               <li>AC 胶料参数只读；自定义模式可改 <b>μ_ref / k</b>，<b>FZ0</b> 继承上一次 AC 胶料。</li>
-              <li><b>驱动力 100% 后轴；制动力按固定 60% 前 / 40% 后</b> 近似。纵向力分配与滑移无关，但仍决定每轴 Fx 和联合利用率。未建模 EBD 与制动偏置变化。</li>
-              <li>3D 底盘按 AC 的 <b>STRUT / DWB</b> 架构、GT86 轴距/轮距与轮端刚度做<b>简化机构示意</b>。</li>
-              <li>ARB 的 AC 原文件注释与 CSP 文档在单位表述上存在差异；按等效轮端 N/m 读取。</li>
+              <li>制动默认取所选车型 <b>brakes.ini</b>（均 COCKPIT_ADJUSTABLE = 0），页内可调；驱动默认取所选车型 drivetrain.ini，可选 FWD / AWD（AWD 固定 50/50）。纵向力分配与滑移无关，但仍决定每轴 Fx 和联合利用率。未建模 EBD。</li>
+              <li>3D 底盘的轴距 / 轮距会按所选车型缩放，但悬架架构与连接点仍是<b>通用简化示意</b>，不逐车复刻硬点。</li>
+              <li>ARB 的 AC 原文件注释与 CSP 文档在单位表述上存在差异；四车均按等效轮端 N/m 读取。</li>
             </ul>
           </div>
         </div>
@@ -809,7 +863,7 @@ U = F_res,axle / Fgrip,axle</code></pre>
   </main>
 
   <footer class="site-footer">
-    <span>Cornering Lab · Toyota GT86 ZN6</span>
+    <span>Cornering Lab · Assetto Corsa multi-car</span>
     <span class="footer-sep" aria-hidden="true"></span>
     <span>STEADY-STATE MECHANISM DEMO</span>
     <span class="footer-sep" aria-hidden="true"></span>
