@@ -6,7 +6,7 @@
 
 ![桌面预览](docs/preview-desktop.png)
 
-在线版本：[hanlin-yu.github.io/gt86-cornering-lab](https://hanlin-yu.github.io/gt86-cornering-lab/)
+在线版本：[hanlin-yu.github.io/cornering-lab](https://hanlin-yu.github.io/cornering-lab/)
 
 当前可切换车型：
 
