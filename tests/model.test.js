@@ -31,18 +31,19 @@ test('GT86 defaults reproduce the source geometry and understeer balance', () =>
   approx(r.state.cgHeightM, 0.4226, 1e-9, 'CG height');
   approx(r.staticLoads.frontAxle, 7245.89, 1, 'front static axle load');
   approx(r.staticLoads.rearAxle, 5355.66, 1, 'rear static axle load');
-  approx(r.rollStiffness.frontShare, 0.7242, 0.0005, 'front roll share');
-  approx(r.rollAngleDeg, 2.62, 0.03, 'roll angle');
-  approx(r.grip.front, 8586.0, 1, 'front axle grip');
-  approx(r.grip.rear, 6752.3, 1, 'rear axle grip');
-  approx(r.deltaPP, 4.314, 0.01, 'balance delta');
-  approx(r.loadTransferRatio.front, 0.2977, 0.001, 'front load-transfer ratio');
-  approx(r.loadTransferRatio.rear, 0.1514, 0.001, 'rear load-transfer ratio');
+  approx(r.rollStiffness.frontShare, 0.69794, 0.0005, 'front roll share');
+  approx(r.rollAngleDeg, 3.124, 0.03, 'roll angle');
+  approx(r.grip.front, 8410.1, 1, 'front axle grip');
+  approx(r.grip.rear, 6705.9, 1, 'rear axle grip');
+  approx(r.deltaPP, 5.349, 0.01, 'balance delta');
+  approx(r.loadTransferRatio.front, 0.28685, 0.001, 'front load-transfer ratio');
+  approx(r.loadTransferRatio.rear, 0.16578, 0.001, 'rear load-transfer ratio');
   assert.equal(r.balance, 'understeer');
 });
 
-test('front and rear tyre loads add back to their axle loads when both tyres are on the ground', () => {
+test('tyre loads sum to axle loads and wheel couples balance the roll moment', () => {
   const r = model.calculate(model.cloneBaseState());
+  const s = r.state;
   approx(
     r.wheelLoads.frontOuter + r.wheelLoads.frontInner,
     r.staticLoads.frontAxle,
@@ -55,11 +56,37 @@ test('front and rear tyre loads add back to their axle loads when both tyres are
     0.01,
     'rear axle load sum'
   );
+
+  // The two wheel-load couples must balance the total roll moment. This fails
+  // if the per-wheel transfer is divided in half, even though the axle load
+  // sums above remain conserved.
+  const frontMoment = (r.wheelLoads.frontOuter - r.wheelLoads.frontInner) *
+    s.trackFrontM / 2;
+  const rearMoment = (r.wheelLoads.rearOuter - r.wheelLoads.rearInner) *
+    s.trackRearM / 2;
   approx(
-    r.frontLoadTransfer + r.rearLoadTransfer,
-    r.mass * r.ay * r.state.cgHeightM * (r.rollStiffness.frontShare / r.state.trackFrontM + (1 - r.rollStiffness.frontShare) / r.state.trackRearM),
-    0.01,
-    'transfer moment accounting'
+    frontMoment + rearMoment,
+    r.totalLateralForce * s.cgHeightM,
+    1e-6,
+    'wheel-load couples balance the roll moment'
+  );
+  approx(
+    frontMoment,
+    r.rollStiffness.frontShare * r.totalLateralForce * s.cgHeightM,
+    1e-6,
+    'front axle carries its roll-moment share'
+  );
+  approx(
+    r.wheelLoads.frontOuter - r.wheelLoads.frontInner,
+    2 * r.frontLoadTransfer,
+    1e-6,
+    'per-wheel transfer is half the outer-inner difference'
+  );
+  approx(
+    r.wheelLoads.rearOuter - r.wheelLoads.rearInner,
+    2 * r.rearLoadTransfer,
+    1e-6,
+    'rear per-wheel transfer is half the outer-inner difference'
   );
 });
 
@@ -588,7 +615,7 @@ test('equal-utilisation solver reports frontier limits honestly', () => {
   assert.equal(balancedSolution.balance, 'neutral');
 });
 
-test('wheel lift is clamped at zero and raises a warning', () => {
+test('wheel lift is clamped at zero and preserves axle normal load', () => {
   const base = model.cloneBaseState();
   const r = model.calculate({
     ...base,
@@ -605,8 +632,82 @@ test('wheel lift is clamped at zero and raises a warning', () => {
   assert.ok(r.wheelLoads.frontInnerRaw < 0 || r.wheelLoads.rearInnerRaw < 0);
   assert.ok(r.wheelLoads.frontInner >= 0);
   assert.ok(r.wheelLoads.rearInner >= 0);
+  approx(
+    r.wheelLoads.frontOuter + r.wheelLoads.frontInner,
+    r.axleLoads.front,
+    1e-6,
+    'front axle load is preserved after inner-wheel lift'
+  );
+  approx(
+    r.wheelLoads.rearOuter + r.wheelLoads.rearInner,
+    r.axleLoads.rear,
+    1e-6,
+    'rear axle load is preserved after inner-wheel lift'
+  );
+  assert.ok(r.wheelLoads.frontOuter <= r.axleLoads.front + 1e-9);
+  assert.ok(r.wheelLoads.rearOuter <= r.axleLoads.rear + 1e-9);
+  approx(
+    r.wheelLoads.FL + r.wheelLoads.FR + r.wheelLoads.RL + r.wheelLoads.RR,
+    r.mass * model.G,
+    1e-6,
+    'total normal load equals vehicle weight'
+  );
   assert.equal(r.wheelLift.any, true);
   assert.ok(r.warnings.some((warning) => warning.code === 'wheel-lift'));
+});
+
+test('tyre spring rate is in series with the suspension wheel rate', () => {
+  const base = model.cloneBaseState();
+  const r = model.calculate(base);
+  const s = r.state;
+  const frontSuspensionRate = (s.springFrontNmm + s.arbFrontNmm) * 1000;
+  const rearSuspensionRate = (s.springRearNmm + s.arbRearNmm) * 1000;
+  const expectedFrontGround =
+    (frontSuspensionRate * s.tireVerticalRateNm) /
+    (frontSuspensionRate + s.tireVerticalRateNm);
+  const expectedRearGround =
+    (rearSuspensionRate * s.tireRearVerticalRateNm) /
+    (rearSuspensionRate + s.tireRearVerticalRateNm);
+
+  approx(
+    r.springRates.groundFrontNmm,
+    expectedFrontGround / 1000,
+    1e-9,
+    'front series ground rate'
+  );
+  approx(
+    r.springRates.groundRearNmm,
+    expectedRearGround / 1000,
+    1e-9,
+    'rear series ground rate'
+  );
+  approx(
+    r.rollStiffness.front,
+    expectedFrontGround * s.trackFrontM * s.trackFrontM / 2,
+    1e-6,
+    'front roll stiffness uses the ground rate'
+  );
+  approx(
+    r.rollStiffness.rear,
+    expectedRearGround * s.trackRearM * s.trackRearM / 2,
+    1e-6,
+    'rear roll stiffness uses the ground rate'
+  );
+  assert.ok(r.springRates.groundFrontNmm < r.springRates.frontNmm);
+  assert.ok(r.springRates.groundRearNmm < r.springRates.rearNmm);
+
+  const softerTyres = model.calculate({
+    ...base,
+    tireVerticalRateNm: 120000,
+    tireRearVerticalRateNm: 120000
+  });
+  assert.ok(softerTyres.springRates.groundFrontNmm < r.springRates.groundFrontNmm);
+  assert.ok(softerTyres.springRates.groundRearNmm < r.springRates.groundRearNmm);
+  assert.ok(softerTyres.rollAngleDeg > r.rollAngleDeg);
+  assert.ok(
+    softerTyres.state.tireVerticalRateNm === 120000 &&
+    softerTyres.state.tireRearVerticalRateNm === 120000
+  );
 });
 
 test('high lateral demand raises a total grip warning and limit flag', () => {

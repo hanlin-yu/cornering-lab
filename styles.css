@@ -1279,6 +1279,15 @@ input:focus-visible {
   font-size: 9.6px;
 }
 
+.stiffness-series-note {
+  margin: 9px 0 0;
+  color: #71858e;
+  font-family: var(--font-mono);
+  font-size: 8.5px;
+  line-height: 1.45;
+  letter-spacing: 0.02em;
+}
+
 /* Tyre selector */
 
 .tyre-section {

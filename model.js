@@ -40,6 +40,9 @@
    *   This is not a slip model: the allocation still sets each axle's Fx and
    *   therefore its combined utilisation, so it is an explicit assumption.
    * - Lateral and longitudinal demands are combined with a friction circle.
+   * - The tyre vertical RATE is in series with the suspension wheel rate for
+   *   the roll-stiffness calculation:
+   *   k_ground = 1 / (1 / (k_spring + k_ARB) + 1 / k_tyre).
    * - Slip angle and slip ratio are NOT modelled; mu is load-sensitive only.
    */
   function makeTyreAxleSpec(widthM, radiusM, verticalRateNm, fz0N, muRef, lsExpy) {
@@ -1704,6 +1707,16 @@
     return Math.min(max, Math.max(min, value));
   }
 
+  function seriesRate(a, b) {
+    if (!(a > 0)) {
+      return b > 0 ? b : 0;
+    }
+    if (!(b > 0)) {
+      return a;
+    }
+    return (a * b) / (a + b);
+  }
+
   function cloneBaseState(carId, compoundId) {
     return createBaseState(carId, compoundId);
   }
@@ -1771,15 +1784,34 @@
     var longitudinalTransfer = mass * ax * s.cgHeightM / s.wheelbaseM;
     var frontAxleLoadRaw = frontStaticAxle - longitudinalTransfer;
     var rearAxleLoadRaw = rearStaticAxle + longitudinalTransfer;
-    var frontAxleLoad = Math.max(0, frontAxleLoadRaw);
-    var rearAxleLoad = Math.max(0, rearAxleLoadRaw);
+    // Keep total normal load equal to weight even when the linear longitudinal
+    // transfer asks for more load than one axle can carry.
+    var totalNormalLoad = mass * G;
+    var frontAxleLoad = clamp(frontAxleLoadRaw, 0, totalNormalLoad);
+    var rearAxleLoad = totalNormalLoad - frontAxleLoad;
 
-    var frontWheelRate = s.springFrontNmm + s.arbFrontNmm;
-    var rearWheelRate = s.springRearNmm + s.arbRearNmm;
+    var frontSuspensionRateNmm = s.springFrontNmm + s.arbFrontNmm;
+    var rearSuspensionRateNmm = s.springRearNmm + s.arbRearNmm;
+    var frontTyreRateNm = s.tireVerticalRateNm > 0
+      ? s.tireVerticalRateNm
+      : DATA.tyreVerticalRateNm;
+    var rearTyreRateNm = s.tireRearVerticalRateNm > 0
+      ? s.tireRearVerticalRateNm
+      : frontTyreRateNm;
 
-    // A pair of equal wheel rates contributes (k * track^2 / 2) Nm per radian.
-    var frontRollStiffness = frontWheelRate * 1000 * s.trackFrontM * s.trackFrontM / 2;
-    var rearRollStiffness = rearWheelRate * 1000 * s.trackRearM * s.trackRearM / 2;
+    // The tyre vertical spring is in series with the suspension wheel rate at
+    // each wheel. ARB is already represented as an equivalent wheel rate.
+    var frontGroundRateNm = seriesRate(
+      frontSuspensionRateNmm * 1000, frontTyreRateNm
+    );
+    var rearGroundRateNm = seriesRate(
+      rearSuspensionRateNmm * 1000, rearTyreRateNm
+    );
+
+    // A pair of equal ground-level wheel rates contributes
+    // (k * track^2 / 2) Nm per radian.
+    var frontRollStiffness = frontGroundRateNm * s.trackFrontM * s.trackFrontM / 2;
+    var rearRollStiffness = rearGroundRateNm * s.trackRearM * s.trackRearM / 2;
     var totalRollStiffness = frontRollStiffness + rearRollStiffness;
     var frontRollShare = totalRollStiffness > 0 ? frontRollStiffness / totalRollStiffness : 0.5;
 
@@ -1788,17 +1820,24 @@
     var rollAngleDeg = rollAngleRad * 180 / Math.PI;
 
     // Load-transfer magnitudes are independent of turn direction. "Outer"
-    // means the outside wheel of the current turn.
+    // means the outside wheel of the current turn. The axle's roll moment is
+    // balanced by an equal-and-opposite wheel-load pair, so each wheel changes
+    // by share * rollMoment / track (not half of that).
     var frontLoadTransfer = frontRollShare * rollMoment / s.trackFrontM;
     var rearLoadTransfer = (1 - frontRollShare) * rollMoment / s.trackRearM;
 
-    var frontOuterLoadRaw = frontAxleLoad / 2 + frontLoadTransfer / 2;
-    var frontInnerLoadRaw = frontAxleLoad / 2 - frontLoadTransfer / 2;
-    var rearOuterLoadRaw = rearAxleLoad / 2 + rearLoadTransfer / 2;
-    var rearInnerLoadRaw = rearAxleLoad / 2 - rearLoadTransfer / 2;
+    var frontOuterLoadRaw = frontAxleLoad / 2 + frontLoadTransfer;
+    var frontInnerLoadRaw = frontAxleLoad / 2 - frontLoadTransfer;
+    var rearOuterLoadRaw = rearAxleLoad / 2 + rearLoadTransfer;
+    var rearInnerLoadRaw = rearAxleLoad / 2 - rearLoadTransfer;
 
+    // Clamp both sides while preserving each axle's total normal load. Above
+    // the lift threshold the linear model is outside its valid range; the
+    // warning tells the user so, and the other axle is not rebalanced here.
     var frontInnerLoad = Math.max(0, frontInnerLoadRaw);
     var rearInnerLoad = Math.max(0, rearInnerLoadRaw);
+    var frontOuterLoad = Math.min(frontAxleLoad, Math.max(0, frontOuterLoadRaw));
+    var rearOuterLoad = Math.min(rearAxleLoad, Math.max(0, rearOuterLoadRaw));
 
     // AC load-sensitive tyre curve, evaluated per tyre at its actual Fz.
     // k = 1 - LS_EXPY; mu(Fz) = mu_ref * (Fz / FZ0)^(-k).
@@ -1817,9 +1856,9 @@
     }
 
     var tyreGrip = {
-      frontOuter: tyreAtLoad(Math.max(0, frontOuterLoadRaw), 'front'),
+      frontOuter: tyreAtLoad(frontOuterLoad, 'front'),
       frontInner: tyreAtLoad(frontInnerLoad, 'front'),
-      rearOuter: tyreAtLoad(Math.max(0, rearOuterLoadRaw), 'rear'),
+      rearOuter: tyreAtLoad(rearOuterLoad, 'rear'),
       rearInner: tyreAtLoad(rearInnerLoad, 'rear')
     };
 
@@ -1830,10 +1869,10 @@
       RR: isRightTurn ? tyreGrip.rearInner : tyreGrip.rearOuter
     };
     var actualWheelLoads = {
-      FL: isRightTurn ? frontOuterLoadRaw : frontInnerLoad,
-      FR: isRightTurn ? frontInnerLoad : frontOuterLoadRaw,
-      RL: isRightTurn ? rearOuterLoadRaw : rearInnerLoad,
-      RR: isRightTurn ? rearInnerLoad : rearOuterLoadRaw
+      FL: isRightTurn ? frontOuterLoad : frontInnerLoad,
+      FR: isRightTurn ? frontInnerLoad : frontOuterLoad,
+      RL: isRightTurn ? rearOuterLoad : rearInnerLoad,
+      RR: isRightTurn ? rearInnerLoad : rearOuterLoad
     };
 
     var frontGrip = tyreGrip.frontOuter.capacity + tyreGrip.frontInner.capacity;
@@ -1935,16 +1974,10 @@
 
     var staticWheelLoadFront = frontStaticWheel;
     var staticWheelLoadRear = rearStaticWheel;
-    var frontTyreVerticalRate = s.tireVerticalRateNm > 0
-      ? s.tireVerticalRateNm
-      : DATA.tyreVerticalRateNm;
-    var rearTyreVerticalRate = s.tireRearVerticalRateNm > 0
-      ? s.tireRearVerticalRateNm
-      : frontTyreVerticalRate;
-    var tyreDeflectionFrontOuter = Math.max(0, frontOuterLoadRaw) / frontTyreVerticalRate;
-    var tyreDeflectionFrontInner = frontInnerLoad / frontTyreVerticalRate;
-    var tyreDeflectionRearOuter = Math.max(0, rearOuterLoadRaw) / rearTyreVerticalRate;
-    var tyreDeflectionRearInner = rearInnerLoad / rearTyreVerticalRate;
+    var tyreDeflectionFrontOuter = frontOuterLoad / frontTyreRateNm;
+    var tyreDeflectionFrontInner = frontInnerLoad / frontTyreRateNm;
+    var tyreDeflectionRearOuter = rearOuterLoad / rearTyreRateNm;
+    var tyreDeflectionRearInner = rearInnerLoad / rearTyreRateNm;
 
     return {
       state: s,
@@ -1979,12 +2012,16 @@
         brakeBiasRear: 1 - s.brakeBiasFront
       },
       springRates: {
-        frontNmm: frontWheelRate,
-        rearNmm: rearWheelRate,
+        frontNmm: frontSuspensionRateNmm,
+        rearNmm: rearSuspensionRateNmm,
         springFrontNmm: s.springFrontNmm,
         springRearNmm: s.springRearNmm,
         arbFrontNmm: s.arbFrontNmm,
-        arbRearNmm: s.arbRearNmm
+        arbRearNmm: s.arbRearNmm,
+        tireFrontNmm: frontTyreRateNm / 1000,
+        tireRearNmm: rearTyreRateNm / 1000,
+        groundFrontNmm: frontGroundRateNm / 1000,
+        groundRearNmm: rearGroundRateNm / 1000
       },
       rollStiffness: {
         front: frontRollStiffness,
@@ -2004,11 +2041,13 @@
         FR: actualWheelLoads.FR,
         RL: actualWheelLoads.RL,
         RR: actualWheelLoads.RR,
-        frontOuter: frontOuterLoadRaw,
+        frontOuter: frontOuterLoad,
         frontInner: frontInnerLoad,
-        rearOuter: rearOuterLoadRaw,
+        rearOuter: rearOuterLoad,
         rearInner: rearInnerLoad,
+        frontOuterRaw: frontOuterLoadRaw,
         frontInnerRaw: frontInnerLoadRaw,
+        rearOuterRaw: rearOuterLoadRaw,
         rearInnerRaw: rearInnerLoadRaw
       },
       tyreDeflection: {

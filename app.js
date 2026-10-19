@@ -534,10 +534,11 @@
       ['轮胎半径 F / R',
         state.tireRadiusM.toFixed(4) + ' / ' + state.tireRearRadiusM.toFixed(4) + ' m',
         'RADIUS，前后轴独立读取'],
-      ['垂向刚度 F / R',
-        Math.round(state.tireVerticalRateNm).toLocaleString('en-US') + ' / ' +
-        Math.round(state.tireRearVerticalRateNm).toLocaleString('en-US') + ' N/m',
-        '垂向刚度仅用于 3D 轮胎压缩视觉'],
+      ['轮胎弹簧率 F / R',
+        (state.tireVerticalRateNm / 1000).toFixed(1) + ' / ' +
+        (state.tireRearVerticalRateNm / 1000).toFixed(1) + ' N/mm',
+        'RATE ' + state.tireVerticalRateNm + ' / ' + state.tireRearVerticalRateNm +
+        ' N/m · 与悬挂合计轮率串联为接地轮率'],
       ['悬挂形式',
         '前 ' + profile.frontSuspension.type + ' · ' + profile.frontSuspension.name +
         ' / 后 ' + profile.rearSuspension.type + ' · ' + profile.rearSuspension.name,
@@ -645,6 +646,20 @@
       formatTyrePair(state.tireLoadSensitivityK, state.tireRearLoadSensitivityK, 3));
     setText('tyreFz0Readout',
       formatTyrePairInt(state.tireFz0N, state.tireRearFz0N));
+    setText('tyreSpringRateReadout',
+      formatTyrePair(
+        state.tireVerticalRateNm / 1000,
+        state.tireRearVerticalRateNm / 1000,
+        1
+      ));
+    var customFrontSpring = $('customTyreSpringFront');
+    if (customFrontSpring && customFrontSpring !== document.activeElement) {
+      customFrontSpring.value = (state.tireVerticalRateNm / 1000).toFixed(1);
+    }
+    var customRearSpring = $('customTyreSpringRear');
+    if (customRearSpring && customRearSpring !== document.activeElement) {
+      customRearSpring.value = (state.tireRearVerticalRateNm / 1000).toFixed(1);
+    }
     setText('curveTyreName', currentTyreName());
     updateVehicleBar();
   }
@@ -1885,6 +1900,9 @@
 
     setText('frontStiffnessSummary', result.springRates.frontNmm.toFixed(1) + ' N/mm');
     setText('rearStiffnessSummary', result.springRates.rearNmm.toFixed(1) + ' N/mm');
+    setText('stiffnessSeriesNote',
+      '接地串联轮率 F ' + result.springRates.groundFrontNmm.toFixed(1) +
+      ' / R ' + result.springRates.groundRearNmm.toFixed(1) + ' N/mm');
   }
 
   function renderTyreCurve(result) {
@@ -2490,6 +2508,41 @@
         updateRangeFill(element);
       }
     });
+
+    function bindTyreSpringInput(inputId, key) {
+      var input = $(inputId);
+      if (!input) {
+        return;
+      }
+      function apply(isCommit) {
+        var value = Number(input.value);
+        if (!Number.isFinite(value)) {
+          if (isCommit) {
+            input.value = (state[key] / 1000).toFixed(1);
+          }
+          return;
+        }
+        var min = input.min !== '' ? Number(input.min) : model.LIMITS[key][0] / 1000;
+        var max = input.max !== '' ? Number(input.max) : model.LIMITS[key][1] / 1000;
+        if (!isCommit && (value < min || value > max)) {
+          return;
+        }
+        value = clamp(value, min, max);
+        state[key] = value * 1000;
+        if (isCommit) {
+          input.value = value.toFixed(1);
+        }
+        markGRegionsDirty();
+        clearAutoNote();
+        render();
+      }
+      input.addEventListener('input', function () { apply(false); });
+      input.addEventListener('change', function () { apply(true); });
+      input.addEventListener('blur', function () { apply(true); });
+    }
+
+    bindTyreSpringInput('customTyreSpringFront', 'tireVerticalRateNm');
+    bindTyreSpringInput('customTyreSpringRear', 'tireRearVerticalRateNm');
 
     var frontWeightInput = $('frontWeightPct');
     if (frontWeightInput) {
