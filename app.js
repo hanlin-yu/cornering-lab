@@ -37,7 +37,6 @@
   };
   var gTrail = [];
   var gLastTrailPoint = null;
-  var gPadTool = 'set';
   var gPadDragging = false;
   var gPadPointerId = null;
   var gPlaying = false;
@@ -1831,7 +1830,6 @@
       return;
     }
     var svg = $('gPadSvg');
-    var toolButton = $('gToolButton');
     var viewPanning = false;
     var viewPanPointerId = null;
     var viewPanStart = null;
@@ -1839,33 +1837,6 @@
     var padPinch = null;
     var padTouchSingle = null;
     var padSuppressTouchSingle = false;
-
-    function syncToolButton() {
-      var hand = gPadTool === 'hand';
-      pad.classList.toggle('is-hand-tool', hand);
-      if (!toolButton) {
-        return;
-      }
-      toolButton.classList.toggle('is-hand', hand);
-      toolButton.setAttribute('aria-pressed', hand ? 'true' : 'false');
-      // The label names the action, not the current tool.
-      toolButton.textContent = hand ? '设置 G' : '拖动';
-      toolButton.title = hand
-        ? '切换到设置 G'
-        : '切换到拖动视图';
-      toolButton.setAttribute('aria-label',
-        hand
-          ? '切换到设置 G'
-          : '切换到拖动视图');
-    }
-
-    if (toolButton) {
-      toolButton.addEventListener('click', function () {
-        gPadTool = gPadTool === 'hand' ? 'set' : 'hand';
-        syncToolButton();
-      });
-    }
-    syncToolButton();
 
     function pointerToG(event) {
       var rect = svg.getBoundingClientRect();
@@ -2027,8 +1998,7 @@
           id: event.pointerId,
           startX: event.clientX,
           startY: event.clientY,
-          moved: false,
-          mode: gPadTool === 'hand' ? 'pan' : 'set'
+          moved: false
         };
         try {
           pad.focus({ preventScroll: true });
@@ -2038,8 +2008,7 @@
         return;
       }
 
-      var handPan = event.button === 0 && gPadTool === 'hand';
-      if (event.button === 1 || event.button === 2 || event.shiftKey || handPan) {
+      if (event.button === 1 || event.button === 2 || event.shiftKey) {
         viewPanning = true;
         viewPanPointerId = event.pointerId;
         viewPanStart = {
@@ -2093,23 +2062,6 @@
           return;
         }
         padTouchSingle.moved = true;
-
-        if (padTouchSingle.mode === 'pan') {
-          if (!viewPanning) {
-            viewPanning = true;
-            viewPanPointerId = event.pointerId;
-            viewPanStart = {
-              x: padTouchSingle.startX,
-              y: padTouchSingle.startY,
-              latMin: gView.latMin,
-              longMin: gView.longMin
-            };
-            pad.classList.add('is-panning');
-          }
-          panViewFrom(event);
-          return;
-        }
-
         applyPointer(event);
         return;
       }
@@ -2148,9 +2100,7 @@
         }
 
         if (padTouchSingle && padTouchSingle.id === event.pointerId) {
-          if (event.type === 'pointerup' &&
-            padTouchSingle.mode === 'set' &&
-            !padTouchSingle.moved) {
+          if (event.type === 'pointerup' && !padTouchSingle.moved) {
             applyPointer(event);
           }
           padTouchSingle = null;
