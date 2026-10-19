@@ -732,7 +732,6 @@
     var axes = $('gPadAxes');
     var guide = $('gPadCornerGuide');
     var auxLines = $('gPadAuxLines');
-    var auxLabels = $('gPadAuxLabels');
     if (!grid || !axes || !guide) {
       return;
     }
@@ -741,9 +740,6 @@
     clearSvgGroup(axes);
     if (auxLines) {
       clearSvgGroup(auxLines);
-    }
-    if (auxLabels) {
-      clearSvgGroup(auxLabels);
     }
 
     var plotWidth = G_PAD.width - G_PAD.left - G_PAD.right;
@@ -835,22 +831,6 @@
           y2: gPadY(line.long2).toFixed(2),
           class: 'g-pad-aux-line'
         }));
-      });
-    }
-
-    if (auxLabels) {
-      [
-        { text: '刹车', lat: 0, long: -1.68, className: 'g-pad-aux-label--brake' },
-        { text: '入弯', lat: -1.25, long: -0.55, className: 'g-pad-aux-label--entry' },
-        { text: '出弯', lat: 1.25, long: 0.55, className: 'g-pad-aux-label--exit' },
-        { text: '加速', lat: 0, long: 1.68, className: 'g-pad-aux-label--accel' }
-      ].forEach(function (label) {
-        auxLabels.appendChild(createSvgElement('text', {
-          x: gPadX(label.lat).toFixed(2),
-          y: gPadY(label.long).toFixed(2),
-          'text-anchor': 'middle',
-          class: 'g-pad-aux-label ' + label.className
-        }, label.text));
       });
     }
 
@@ -1087,8 +1067,10 @@
       }
     }
 
-    // Bright one-pixel contours make each state region legible without hiding
-    // the rest of the field.
+    // Multi-pixel contours make each state region legible without hiding the
+    // rest of the field. The sample canvas is supersampled, so radius 3 here
+    // becomes a clearly bolder outline after downscaling.
+    var contourRadius = 3;
     for (var borderPy = 0; borderPy < imageHeight; borderPy += 1) {
       for (var borderPx = 0; borderPx < imageWidth; borderPx += 1) {
         var borderIndex = borderPy * imageWidth + borderPx;
@@ -1096,11 +1078,30 @@
         if (!borderState) {
           continue;
         }
-        var isBoundary =
-          (borderPx > 0 && pixelStates[borderIndex - 1] !== borderState) ||
-          (borderPx < imageWidth - 1 && pixelStates[borderIndex + 1] !== borderState) ||
-          (borderPy > 0 && pixelStates[borderIndex - imageWidth] !== borderState) ||
-          (borderPy < imageHeight - 1 && pixelStates[borderIndex + imageWidth] !== borderState);
+        var isBoundary = false;
+        for (var borderDy = -contourRadius;
+          borderDy <= contourRadius && !isBoundary;
+          borderDy += 1) {
+          var neighborY = borderPy + borderDy;
+          if (neighborY < 0 || neighborY >= imageHeight) {
+            continue;
+          }
+          for (var borderDx = -contourRadius;
+            borderDx <= contourRadius;
+            borderDx += 1) {
+            if (borderDx === 0 && borderDy === 0) {
+              continue;
+            }
+            var neighborX = borderPx + borderDx;
+            if (neighborX < 0 || neighborX >= imageWidth) {
+              continue;
+            }
+            if (pixelStates[neighborY * imageWidth + neighborX] !== borderState) {
+              isBoundary = true;
+              break;
+            }
+          }
+        }
         if (!isBoundary) {
           continue;
         }

@@ -677,32 +677,6 @@ input:focus-visible {
   stroke-dasharray: 4 5;
 }
 
-.g-pad-aux-label {
-  fill: #b9cdd2;
-  font-family: var(--font-mono);
-  font-size: 10px;
-  letter-spacing: 0.1em;
-  paint-order: stroke;
-  stroke: rgba(4, 10, 13, 0.9);
-  stroke-width: 3.5px;
-  stroke-linejoin: round;
-}
-
-.g-pad-aux-label--entry {
-  fill: #9edbd1;
-}
-
-.g-pad-aux-label--exit {
-  fill: #e6c69a;
-}
-
-.g-pad-aux-label--brake {
-  fill: #b8d9e2;
-}
-
-.g-pad-aux-label--accel {
-  fill: #e6b477;
-}
 
 .g-pad-trail {
   stroke: rgba(89, 217, 211, 0.9);
