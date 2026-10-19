@@ -1629,12 +1629,19 @@
   var REFERENCE_SPEED_KMH = 100;
 
   var VEHICLE_STATES = Object.freeze({
-    powerOver: Object.freeze({
-      code: 'power-over',
-      label: '动力甩尾',
-      labelEn: 'POWER OVERSTEER',
+    cornerExitUndersteer: Object.freeze({
+      code: 'corner-exit-understeer',
+      label: '出弯推头',
+      labelEn: 'CORNER-EXIT UNDERSTEER',
       direction: 'accel',
-      axle: 'rear'
+      axle: 'front'
+    }),
+    cornerEntryUndersteer: Object.freeze({
+      code: 'corner-entry-understeer',
+      label: '入弯推头',
+      labelEn: 'CORNER-ENTRY UNDERSTEER',
+      direction: 'brake',
+      axle: 'front'
     }),
     powerUnder: Object.freeze({
       code: 'power-under',
@@ -1649,6 +1656,27 @@
       labelEn: 'FRONT LOCK',
       direction: 'brake',
       axle: 'front'
+    }),
+    cornerExitOversteer: Object.freeze({
+      code: 'corner-exit-oversteer',
+      label: '出弯甩尾',
+      labelEn: 'CORNER-EXIT OVERSTEER',
+      direction: 'accel',
+      axle: 'rear'
+    }),
+    cornerEntryOversteer: Object.freeze({
+      code: 'corner-entry-oversteer',
+      label: '入弯甩尾',
+      labelEn: 'CORNER-ENTRY OVERSTEER',
+      direction: 'brake',
+      axle: 'rear'
+    }),
+    powerOver: Object.freeze({
+      code: 'power-over',
+      label: '动力甩尾',
+      labelEn: 'POWER OVERSTEER',
+      direction: 'accel',
+      axle: 'rear'
     }),
     rearLock: Object.freeze({
       code: 'rear-lock',
@@ -1666,7 +1694,7 @@
     })
   });
 
-  function classifyVehicleState(frontUtil, rearUtil, longitudinalG) {
+  function classifyVehicleState(frontUtil, rearUtil, longitudinalG, lateralG) {
     var frontOver = frontUtil >= 1;
     var rearOver = rearUtil >= 1;
     if (!frontOver && !rearOver) {
@@ -1675,15 +1703,38 @@
     if (frontOver && rearOver) {
       return VEHICLE_STATES.lossOfControl;
     }
-    // The sign of longitudinal G selects the acceleration or braking phase.
-    // Exactly 0 g has no directional state.
+
+    // No directional state exists exactly on the axes or the |lat| = |long|
+    // diagonal, where neither axis dominates.
+    if (longitudinalG === 0) {
+      return null;
+    }
+    var lateralAbs = Math.abs(lateralG);
+    var longitudinalAbs = Math.abs(longitudinalG);
+    if (lateralAbs === longitudinalAbs) {
+      return null;
+    }
+    var lateralDominant = lateralAbs > longitudinalAbs;
+
+    if (frontOver) {
+      if (longitudinalG > 0) {
+        return lateralDominant
+          ? VEHICLE_STATES.cornerExitUndersteer
+          : VEHICLE_STATES.powerUnder;
+      }
+      return lateralDominant
+        ? VEHICLE_STATES.cornerEntryUndersteer
+        : VEHICLE_STATES.frontLock;
+    }
+
     if (longitudinalG > 0) {
-      return rearOver ? VEHICLE_STATES.powerOver : VEHICLE_STATES.powerUnder;
+      return lateralDominant
+        ? VEHICLE_STATES.cornerExitOversteer
+        : VEHICLE_STATES.powerOver;
     }
-    if (longitudinalG < 0) {
-      return frontOver ? VEHICLE_STATES.frontLock : VEHICLE_STATES.rearLock;
-    }
-    return null;
+    return lateralDominant
+      ? VEHICLE_STATES.cornerEntryOversteer
+      : VEHICLE_STATES.rearLock;
   }
 
   function clamp(value, min, max) {
@@ -1897,7 +1948,9 @@
     var rearMargin = rearGrip - rearDemand;
     var totalMargin = totalGrip - totalDemand;
 
-    var vehicleState = classifyVehicleState(frontUtil, rearUtil, s.longitudinalG);
+    var vehicleState = classifyVehicleState(
+      frontUtil, rearUtil, s.longitudinalG, s.lateralG
+    );
 
     var frontWheelLift = frontInnerLoadRaw <= 1e-6;
     var rearWheelLift = rearInnerLoadRaw <= 1e-6;

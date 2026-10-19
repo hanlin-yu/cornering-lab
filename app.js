@@ -40,28 +40,40 @@
   var G_REGION_INTERVAL_MS = 1000;
   var G_DELTA_SCALE_PP = 25;
   var G_STATE_ORDER = [
-    'loss-of-control',
-    'power-over',
+    'corner-exit-understeer',
+    'corner-entry-understeer',
     'power-under',
     'front-lock',
-    'rear-lock'
+    'corner-exit-oversteer',
+    'corner-entry-oversteer',
+    'power-over',
+    'rear-lock',
+    'loss-of-control'
   ];
   var G_STATE_INDEX = {};
   G_STATE_ORDER.forEach(function (code, index) {
     G_STATE_INDEX[code] = index + 1;
   });
   var G_STATE_COLORS = {
-    'power-over': [255, 122, 47],
+    'corner-exit-understeer': [83, 213, 199],
+    'corner-entry-understeer': [142, 231, 150],
     'power-under': [53, 213, 223],
     'front-lock': [255, 209, 102],
+    'corner-exit-oversteer': [255, 139, 94],
+    'corner-entry-oversteer': [255, 191, 94],
+    'power-over': [255, 122, 47],
     'rear-lock': [255, 79, 123],
     'loss-of-control': [255, 59, 69]
   };
   var G_STATE_DESCRIPTIONS = {
-    'power-over': '加速时后轴先达到 100% 联合利用率',
-    'power-under': '加速时前轴先达到 100% 联合利用率',
-    'front-lock': '减速时前轴先达到 100% 联合利用率',
-    'rear-lock': '减速时后轴先达到 100% 联合利用率',
+    'corner-exit-understeer': '侧向主导、加速；前轴先达到 100% 联合利用率',
+    'corner-entry-understeer': '侧向主导、减速；前轴先达到 100% 联合利用率',
+    'power-under': '纵向主导、加速；前轴先达到 100% 联合利用率',
+    'front-lock': '纵向主导、减速；前轴先达到 100% 联合利用率',
+    'corner-exit-oversteer': '侧向主导、加速；后轴先达到 100% 联合利用率',
+    'corner-entry-oversteer': '侧向主导、减速；后轴先达到 100% 联合利用率',
+    'power-over': '纵向主导、加速；后轴先达到 100% 联合利用率',
+    'rear-lock': '纵向主导、减速；后轴先达到 100% 联合利用率',
     'loss-of-control': '前后轴同时达到 100% 联合利用率'
   };
   var G_STATE_LABELS = {};
@@ -997,7 +1009,8 @@
         var vehicleState = model.classifyVehicleState(
           frontUtilValue,
           rearUtilValue,
-          longValue
+          longValue,
+          latValue
         );
         var lossColor = vehicleState && vehicleState.code === 'loss-of-control'
           ? G_STATE_COLORS['loss-of-control']
@@ -1015,17 +1028,17 @@
           : 0;
 
         if (lossColor) {
-          // Loss of control is the only categorical region: red hazard stripes
-          // over a dark maroon field. All other regions keep the ΔU colormap.
+          // Loss of control is the only categorical region: 50%-alpha red
+          // hazard stripes over the ΔU field.
           var stripe = ((px + py) % 16) < 8;
           if (stripe) {
-            pixels[dataIndex] = lossColor[0];
-            pixels[dataIndex + 1] = lossColor[1];
-            pixels[dataIndex + 2] = lossColor[2];
+            pixels[dataIndex] = Math.round(baseR * 0.5 + lossColor[0] * 0.5);
+            pixels[dataIndex + 1] = Math.round(baseG * 0.5 + lossColor[1] * 0.5);
+            pixels[dataIndex + 2] = Math.round(baseB * 0.5 + lossColor[2] * 0.5);
           } else {
-            pixels[dataIndex] = 29;
-            pixels[dataIndex + 1] = 7;
-            pixels[dataIndex + 2] = 11;
+            pixels[dataIndex] = baseR;
+            pixels[dataIndex + 1] = baseG;
+            pixels[dataIndex + 2] = baseB;
           }
           pixels[dataIndex + 3] = 255;
         } else {
@@ -1181,7 +1194,7 @@
       [-18, -14], [18, -14], [-18, 14], [18, 14]
     ];
     candidates.forEach(function (candidate) {
-      if (candidate.code === 'loss-of-control' || labelCount >= 7) {
+      if (candidate.code === 'loss-of-control' || labelCount >= 9) {
         return;
       }
       var stateCount = perStateCount[candidate.code] || 0;

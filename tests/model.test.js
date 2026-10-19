@@ -472,31 +472,53 @@ test('unpacked AC suspension hardpoints drive each car 3D architecture', () => {
   });
 });
 
-test('longitudinal sign classifies the five directional and loss states', () => {
+test('lat/long dominance and direction classify the nine limit states', () => {
   const classify = model.classifyVehicleState;
 
-  assert.equal(Object.keys(model.VEHICLE_STATES).length, 5);
-  assert.equal(classify(0.90, 0.90, 0.50), null);
+  assert.equal(Object.keys(model.VEHICLE_STATES).length, 9);
+  assert.equal(classify(0.90, 0.90, 0.50, 1.0), null);
 
-  assert.equal(classify(1.10, 0.80, 0.50).code, 'power-under');
-  assert.equal(classify(0.80, 1.10, 0.50).code, 'power-over');
-  assert.equal(classify(1.10, 0.80, -0.50).code, 'front-lock');
-  assert.equal(classify(0.80, 1.10, -0.50).code, 'rear-lock');
-  // Any non-zero longitudinal sign selects a phase.
-  assert.equal(classify(1.10, 0.80, 0.01).code, 'power-under');
-  assert.equal(classify(0.80, 1.10, 0.01).code, 'power-over');
-  assert.equal(classify(1.10, 0.80, -0.01).code, 'front-lock');
-  assert.equal(classify(0.80, 1.10, -0.01).code, 'rear-lock');
-  assert.equal(classify(1.10, 0.80, 0), null);
-  assert.equal(classify(0.80, 1.10, 0), null);
-  assert.equal(classify(1.10, 1.10, 0.50).code, 'loss-of-control');
-  assert.equal(classify(1.10, 1.10, -0.50).code, 'loss-of-control');
-  assert.equal(classify(1.10, 1.10, 0).code, 'loss-of-control');
+  assert.equal(
+    classify(1.10, 0.80, 0.40, 1.00).code,
+    'corner-exit-understeer'
+  );
+  assert.equal(
+    classify(1.10, 0.80, -0.40, 1.00).code,
+    'corner-entry-understeer'
+  );
+  assert.equal(
+    classify(0.80, 1.10, 0.40, 1.00).code,
+    'corner-exit-oversteer'
+  );
+  assert.equal(
+    classify(0.80, 1.10, -0.40, 1.00).code,
+    'corner-entry-oversteer'
+  );
 
-  assert.equal(classify(1.10, 0.80, 0.01).labelEn, 'POWER UNDER');
-  assert.equal(classify(1.10, 0.80, 0.01).label, '动力推头');
-  assert.equal(classify(0.80, 1.10, -0.01).labelEn, 'REAR LOCK');
-  assert.equal(classify(0.80, 1.10, -0.50).label, '后轮抱死');
+  assert.equal(classify(1.10, 0.80, 0.80, 0.30).code, 'power-under');
+  assert.equal(classify(0.80, 1.10, 0.80, 0.30).code, 'power-over');
+  assert.equal(classify(1.10, 0.80, -0.80, 0.30).code, 'front-lock');
+  assert.equal(classify(0.80, 1.10, -0.80, 0.30).code, 'rear-lock');
+
+  assert.equal(classify(1.10, 0.80, 0.01, 1.00).code, 'corner-exit-understeer');
+  assert.equal(classify(1.10, 1.10, 0.50, 1.00).code, 'loss-of-control');
+  assert.equal(classify(1.10, 1.10, -0.50, 1.00).code, 'loss-of-control');
+  assert.equal(classify(1.10, 1.10, 0, 1.00).code, 'loss-of-control');
+
+  // The axes and the |lat| = |long| diagonal have no directional state.
+  assert.equal(classify(1.10, 0.80, 0, 1.00), null);
+  assert.equal(classify(1.10, 0.80, 0.50, 0.50), null);
+
+  assert.equal(
+    classify(1.10, 0.80, 0.40, 1.00).label,
+    '出弯推头'
+  );
+  assert.equal(
+    classify(0.80, 1.10, -0.40, 1.00).labelEn,
+    'CORNER-ENTRY OVERSTEER'
+  );
+  assert.equal(classify(1.10, 0.80, 0.80, 0.30).label, '动力推头');
+  assert.equal(classify(0.80, 1.10, -0.80, 0.30).label, '后轮抱死');
 
   const straightGrip = model.calculate(model.cloneBaseState());
   assert.equal(straightGrip.vehicleState, null);

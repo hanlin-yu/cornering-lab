@@ -563,15 +563,19 @@
 
           <div class="g-state-key" aria-label="轴超限状态颜色图例">
             <span class="g-state-key-title">轴超限状态 / LIMIT STATES</span>
-            <span data-state="power-over"><i aria-hidden="true"></i>动力甩尾</span>
+            <span data-state="corner-exit-understeer"><i aria-hidden="true"></i>出弯推头</span>
+            <span data-state="corner-entry-understeer"><i aria-hidden="true"></i>入弯推头</span>
             <span data-state="power-under"><i aria-hidden="true"></i>动力推头</span>
             <span data-state="front-lock"><i aria-hidden="true"></i>前轮抱死</span>
+            <span data-state="corner-exit-oversteer"><i aria-hidden="true"></i>出弯甩尾</span>
+            <span data-state="corner-entry-oversteer"><i aria-hidden="true"></i>入弯甩尾</span>
+            <span data-state="power-over"><i aria-hidden="true"></i>动力甩尾</span>
             <span data-state="rear-lock"><i aria-hidden="true"></i>后轮抱死</span>
             <span data-state="loss-of-control"><i aria-hidden="true"></i>失控</span>
           </div>
 
           <p class="g-pad-note">
-            拖动设置 G。底色 = ΔU 连续热力图（0.05 g 插值；黑 = 中性，±25 pp 饱和），非失控区域用同一色图表示推头 / 甩尾。加速超限为动力状态，减速超限为抱死状态，两轴同时超限为失控（红色条纹）。方向状态用彩色边界和标签标出；这是轴饱和分类，不是滑移动力学。
+            拖动设置 G。底色 = ΔU 连续热力图（0.05 g 插值；黑 = 中性，±25 pp 饱和），非失控区域用同一色图表示推头 / 甩尾。轴超限时按 |lat| / |long| 主导方向分类：侧向主导区分入弯 / 出弯，纵向主导区分动力 / 抱死；两轴同时超限为失控（红色半透明条纹）。彩色边界和标签对应各状态。
             <span id="gLongTransferNote">纵向转移 后轴 +0.00 kN</span>
             <span id="gDistributionNote">制动 72 / 28 · RWD</span>
           </p>
