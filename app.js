@@ -36,6 +36,7 @@
   var gPlayLastRender = 0;
   var G_PLAY_DURATION_MS = 6200;
   var G_REGION_STEP = 0.05;
+  var G_REGION_SAMPLE_SCALE = 2;
   var G_REGION_INTERVAL_MS = 1000;
   var G_DELTA_SCALE_PP = 25;
   var G_STATE_ORDER = [
@@ -885,13 +886,13 @@
     var plotWidth = G_PAD.width - G_PAD.left - G_PAD.right;
     var plotHeight = G_PAD.bottom - G_PAD.top;
     gRegionSampleCanvas = document.createElement('canvas');
-    gRegionSampleCanvas.width = plotWidth;
-    gRegionSampleCanvas.height = plotHeight;
+    gRegionSampleCanvas.width = plotWidth * G_REGION_SAMPLE_SCALE;
+    gRegionSampleCanvas.height = plotHeight * G_REGION_SAMPLE_SCALE;
     gRegionSampleContext = gRegionSampleCanvas.getContext('2d');
     if (gRegionSampleContext) {
       gRegionSampleImage = gRegionSampleContext.createImageData(
-        plotWidth,
-        plotHeight
+        gRegionSampleCanvas.width,
+        gRegionSampleCanvas.height
       );
     }
     gHeatColorLut = buildHeatColorLut();
@@ -924,7 +925,6 @@
     var count = Math.round((G_PAD.gMax - G_PAD.gMin) / G_REGION_STEP);
     var side = count + 1;
     var nodeValues = new Float32Array(side * side);
-    var nodeLimits = new Uint8Array(side * side);
     var nodeFrontUtil = new Float32Array(side * side);
     var nodeRearUtil = new Float32Array(side * side);
     var nodeStateIndex = new Uint8Array(side * side);
@@ -942,10 +942,6 @@
         nodeValues[nodeIndex] = Number.isFinite(delta)
           ? Math.max(-100000, Math.min(100000, delta))
           : 0;
-        nodeLimits[nodeIndex] =
-          result.limitExceeded || result.axleLimitReached || result.wheelLift.any
-            ? 1
-            : 0;
         nodeFrontUtil[nodeIndex] = Number.isFinite(result.utilisation.front)
           ? Math.min(4, Math.max(0, result.utilisation.front))
           : 4;
@@ -1004,14 +1000,11 @@
         var rr1 = r01 + (r11 - r01) * tx;
         var rearUtilValue = rr0 + (rr1 - rr0) * ty;
 
-        var l00 = nodeLimits[y0 * side + x0];
-        var l10 = nodeLimits[y0 * side + x1];
-        var l01 = nodeLimits[y1 * side + x0];
-        var l11 = nodeLimits[y1 * side + x1];
-        var l0 = l00 + (l10 - l00) * tx;
-        var l1 = l01 + (l11 - l01) * tx;
-        var limitCoverage = l0 + (l1 - l0) * ty;
-        var maskX = clamp((limitCoverage - 0.30) / 0.45, 0, 1);
+        // Classify and fade from the same interpolated utilisation field.
+        // The old binary node-limit mask could disagree with this threshold
+        // and leave transparent, sawtoothed holes near the friction circle.
+        var maxUtilValue = Math.max(frontUtilValue, rearUtilValue);
+        var maskX = clamp((maxUtilValue - 0.98) / 0.04, 0, 1);
         var heatAlpha = 1 - (maskX * maskX * (3 - 2 * maskX));
 
         var vehicleState = model.classifyVehicleState(
@@ -1089,8 +1082,8 @@
       gRegionSampleCanvas,
       G_PAD.left,
       G_PAD.top,
-      imageWidth,
-      imageHeight
+      G_PAD.width - G_PAD.left - G_PAD.right,
+      G_PAD.bottom - G_PAD.top
     );
 
     updateGStateLabels(nodeStateIndex, side, count);
