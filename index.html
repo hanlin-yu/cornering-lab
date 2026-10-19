@@ -510,7 +510,7 @@
             id="gPad"
             tabindex="0"
             role="application"
-            aria-label="二维 G-G 输入：横轴为侧向 G，纵轴为纵向 G，向上为制动、向下为加速。设置 G 工具下拖动光标或用方向键调节；拖动工具下左键平移；滚轮缩放。"
+            aria-label="二维 G-G 输入：横轴为侧向 G，纵轴为纵向 G，向上为制动、向下为加速。设置 G 工具下轻点或拖动光标，或用方向键调节；拖动工具下拖动平移；滚轮或双指捏合缩放，双指拖动平移。"
           >
             <canvas id="gPadRegionCanvas" class="g-pad-region-canvas" aria-hidden="true"></canvas>
             <svg id="gPadSvg" viewBox="0 0 320 320" aria-hidden="true">
@@ -523,10 +523,16 @@
                 <clipPath id="gPadPlotClip">
                   <rect x="36" y="16" width="270" height="270"></rect>
                 </clipPath>
+                <pattern id="gPadLossHatch" patternUnits="userSpaceOnUse" width="10" height="10" patternTransform="rotate(45)">
+                  <rect width="5" height="10" fill="#c82632"></rect>
+                  <rect x="5" width="5" height="10" fill="#08090a"></rect>
+                </pattern>
               </defs>
+              <path id="gPadLossFill" class="g-pad-loss-fill" fill="url(#gPadLossHatch)" clip-path="url(#gPadPlotClip)"></path>
               <g id="gPadGrid" class="g-pad-grid"></g>
               <g id="gPadAxes" class="g-pad-axes"></g>
               <g id="gPadAuxLines" class="g-pad-aux-lines" aria-hidden="true" clip-path="url(#gPadPlotClip)"></g>
+              <g id="gPadStateOutlines" class="g-pad-state-outlines" aria-hidden="true" clip-path="url(#gPadPlotClip)"></g>
               <path id="gPadCornerGuide" class="g-pad-guide" fill="none" clip-path="url(#gPadPlotClip)"></path>
               <path id="gPadTrail" class="g-pad-trail" fill="none" clip-path="url(#gPadPlotClip)"></path>
               <g id="gPadStateLabels" class="g-pad-state-labels" aria-hidden="true" clip-path="url(#gPadPlotClip)"></g>
@@ -542,7 +548,7 @@
               <span class="g-play-icon" aria-hidden="true"></span>
               <span id="gPlayLabel">扫弯回放</span>
             </button>
-            <button class="g-clear-button g-tool-button" id="gToolButton" type="button" aria-pressed="false" title="当前工具：设置 G；点击切换到拖动视图">设置 G</button>
+            <button class="g-clear-button g-tool-button" id="gToolButton" type="button" aria-pressed="false" title="切换到拖动视图">拖动</button>
             <button class="g-clear-button" id="gClearTrailButton" type="button">清轨迹</button>
             <button class="g-clear-button" id="gResetViewButton" type="button" title="滚轮缩放；右键 / 中键拖动平移；双击复位" aria-label="复位 G-G 视图">复位视图</button>
           </div>
@@ -579,7 +585,7 @@
           </div>
 
           <p class="g-pad-note">
-            拖动设置 G。底色 = ΔU 连续热力图（0.05 g 插值；黑 = 中性，±25 pp 饱和），非失控区域用同一色图表示推头 / 甩尾。轴超限时按 |lat| / |long| 主导方向分类：侧向主导区分入弯 / 出弯，纵向主导区分动力 / 抱死；两轴同时超限为失控（红黑交错斜纹，70% 不透明度）。彩色边界和标签对应各状态。
+            轻点或拖动设置 G；滚轮 / 双指捏合缩放，双指拖动平移。底色 = ΔU 连续热力图（0.05 g 插值；黑 = 中性，±25 pp 饱和），非失控区域用同一色图表示推头 / 甩尾。轴超限时按 |lat| / |long| 主导方向分类：侧向主导区分入弯 / 出弯，纵向主导区分动力 / 抱死；两轴同时超限为失控（红黑交错斜纹，70% 不透明度）。彩色边界和标签对应各状态。
             <span id="gLongTransferNote">纵向转移 后轴 +0.00 kN</span>
             <span id="gDistributionNote">制动 72 / 28 · RWD</span>
           </p>

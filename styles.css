@@ -611,7 +611,8 @@ input:focus-visible {
   cursor: grab;
 }
 
-.g-pad.is-panning {
+.g-pad.is-panning,
+.g-pad.is-pinching {
   cursor: grabbing;
 }
 
@@ -683,6 +684,18 @@ input:focus-visible {
   stroke: rgba(228, 245, 250, 0.56);
   stroke-width: 1.15;
   stroke-dasharray: 4 5;
+}
+
+.g-pad-loss-fill {
+  opacity: 0.7;
+}
+
+.g-pad-state-outline {
+  fill: none;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
 }
 
 
@@ -1922,6 +1935,15 @@ input:focus-visible {
     linear-gradient(180deg, #0b1419 0%, #080e12 54%, #060a0d 100%);
   cursor: grab;
   touch-action: none;
+}
+
+/* On touch screens a vertical swipe over the chassis scrolls the page
+   instead of being swallowed by the orbit control; horizontal drags still
+   rotate the model and two-finger gestures still zoom. */
+@media (pointer: coarse), (max-width: 1100px) {
+  .scene {
+    touch-action: pan-y;
+  }
 }
 
 .scene.is-dragging {

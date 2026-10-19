@@ -24,7 +24,9 @@
     top: 16,
     bottom: 286,
     gMin: -2.0,
-    gMax: 2.0
+    gMax: 2.0,
+    dataMin: -5.0,
+    dataMax: 5.0
   });
   var G_VIEW_MIN_SPAN = 0.25;
   var gView = {
@@ -100,6 +102,9 @@
   var gLastNodeStateIndex = null;
   var gLastStateSide = 0;
   var gLastStateCount = 0;
+  var gLastNodeFrontUtil = null;
+  var gLastNodeRearUtil = null;
+  var G_VECTOR_SAMPLE_SIZE = 480;
 
   function buildPresets(profile) {
     var stock = {
@@ -729,11 +734,11 @@
   }
 
   function setGView(latMin, latMax, longMin, longMax) {
-    var fullSpan = G_PAD.gMax - G_PAD.gMin;
+    var fullSpan = G_PAD.dataMax - G_PAD.dataMin;
     var requestedSpan = latMax - latMin;
     var span = clamp(requestedSpan, G_VIEW_MIN_SPAN, fullSpan);
-    var nextLatMin = clamp(latMin, G_PAD.gMin, G_PAD.gMax - span);
-    var nextLongMin = clamp(longMin, G_PAD.gMin, G_PAD.gMax - span);
+    var nextLatMin = clamp(latMin, G_PAD.dataMin, G_PAD.dataMax - span);
+    var nextLongMin = clamp(longMin, G_PAD.dataMin, G_PAD.dataMax - span);
     var nextLatMax = nextLatMin + span;
     var nextLongMax = nextLongMin + span;
 
@@ -753,7 +758,11 @@
 
   function zoomGViewAt(lat, long, factor) {
     var span = gViewSpan();
-    var nextSpan = clamp(span / factor, G_VIEW_MIN_SPAN, G_PAD.gMax - G_PAD.gMin);
+    var nextSpan = clamp(
+      span / factor,
+      G_VIEW_MIN_SPAN,
+      G_PAD.dataMax - G_PAD.dataMin
+    );
     var latRatio = (lat - gView.latMin) / span;
     var longRatio = (long - gView.longMin) / span;
     var latMin = lat - latRatio * nextSpan;
@@ -876,6 +885,45 @@
       }, formatGAxisTick(value, labelStep)));
     });
 
+    function hasTick(tickValues, value) {
+      return tickValues.some(function (tick) {
+        return Math.abs(tick - value) < 1e-9;
+      });
+    }
+
+    if (gView.latMin <= G_PAD.dataMin + 1e-9 &&
+      !hasTick(xLabelTicks, G_PAD.dataMin)) {
+      axes.appendChild(createSvgElement('text', {
+        x: gPadX(G_PAD.dataMin).toFixed(2),
+        y: G_PAD.bottom + 13,
+        'text-anchor': 'middle'
+      }, formatGAxisTick(G_PAD.dataMin, labelStep)));
+    }
+    if (gView.latMax >= G_PAD.dataMax - 1e-9 &&
+      !hasTick(xLabelTicks, G_PAD.dataMax)) {
+      axes.appendChild(createSvgElement('text', {
+        x: gPadX(G_PAD.dataMax).toFixed(2),
+        y: G_PAD.bottom + 13,
+        'text-anchor': 'middle'
+      }, formatGAxisTick(G_PAD.dataMax, labelStep)));
+    }
+    if (gView.longMin <= G_PAD.dataMin + 1e-9 &&
+      !hasTick(yLabelTicks, G_PAD.dataMin)) {
+      axes.appendChild(createSvgElement('text', {
+        x: G_PAD.left - 5,
+        y: (gPadY(G_PAD.dataMin) + 3).toFixed(2),
+        'text-anchor': 'end'
+      }, formatGAxisTick(G_PAD.dataMin, labelStep)));
+    }
+    if (gView.longMax >= G_PAD.dataMax - 1e-9 &&
+      !hasTick(yLabelTicks, G_PAD.dataMax)) {
+      axes.appendChild(createSvgElement('text', {
+        x: G_PAD.left - 5,
+        y: (gPadY(G_PAD.dataMax) + 3).toFixed(2),
+        'text-anchor': 'end'
+      }, formatGAxisTick(G_PAD.dataMax, labelStep)));
+    }
+
     if (gView.latMin <= 0 && gView.latMax >= 0) {
       axes.appendChild(createSvgElement('line', {
         x1: gPadX(0).toFixed(2),
@@ -912,9 +960,9 @@
 
     if (auxLines) {
       [
-        { lat1: G_PAD.gMin, long1: G_PAD.gMin, lat2: G_PAD.gMax, long2: G_PAD.gMax },
-        { lat1: G_PAD.gMin, long1: G_PAD.gMax, lat2: G_PAD.gMax, long2: G_PAD.gMin },
-        { lat1: G_PAD.gMin, long1: 0, lat2: G_PAD.gMax, long2: 0 }
+        { lat1: G_PAD.dataMin, long1: G_PAD.dataMin, lat2: G_PAD.dataMax, long2: G_PAD.dataMax },
+        { lat1: G_PAD.dataMin, long1: G_PAD.dataMax, lat2: G_PAD.dataMax, long2: G_PAD.dataMin },
+        { lat1: G_PAD.dataMin, long1: 0, lat2: G_PAD.dataMax, long2: 0 }
       ].forEach(function (line) {
         auxLines.appendChild(createSvgElement('line', {
           x1: gPadX(line.lat1).toFixed(2),
@@ -1032,7 +1080,7 @@
 
     gRegionsDirty = false;
 
-    var count = Math.round((G_PAD.gMax - G_PAD.gMin) / G_REGION_STEP);
+    var count = Math.round((G_PAD.dataMax - G_PAD.dataMin) / G_REGION_STEP);
     var side = count + 1;
     var nodeValues = new Float32Array(side * side);
     var nodeFrontUtil = new Float32Array(side * side);
@@ -1040,9 +1088,9 @@
     var nodeStateIndex = new Uint8Array(side * side);
 
     for (var row = 0; row <= count; row += 1) {
-      var long = G_PAD.gMin + row * G_REGION_STEP;
+      var long = G_PAD.dataMin + row * G_REGION_STEP;
       for (var column = 0; column <= count; column += 1) {
-        var lat = G_PAD.gMin + column * G_REGION_STEP;
+        var lat = G_PAD.dataMin + column * G_REGION_STEP;
         var result = model.calculate(Object.assign({}, state, {
           lateralG: lat,
           longitudinalG: long
@@ -1068,20 +1116,19 @@
     var imageHeight = gRegionSampleCanvas.height;
     var pixels = gRegionSampleImage.data;
     var dataIndex = 0;
-    var range = G_PAD.gMax - G_PAD.gMin;
-    var pixelStates = new Uint8Array(imageWidth * imageHeight);
+    var range = G_PAD.dataMax - G_PAD.dataMin;
 
     for (var py = 0; py < imageHeight; py += 1) {
       // Row 0 is the top of the plot: maximum braking (-G long).
-      var longValue = G_PAD.gMin + (py / (imageHeight - 1)) * range;
-      var fy = (longValue - G_PAD.gMin) / G_REGION_STEP;
+      var longValue = G_PAD.dataMin + (py / (imageHeight - 1)) * range;
+      var fy = (longValue - G_PAD.dataMin) / G_REGION_STEP;
       var y0 = Math.min(count, Math.floor(fy));
       var y1 = Math.min(count, y0 + 1);
       var ty = fy - y0;
 
       for (var px = 0; px < imageWidth; px += 1) {
-        var latValue = G_PAD.gMin + (px / (imageWidth - 1)) * range;
-        var fx = (latValue - G_PAD.gMin) / G_REGION_STEP;
+        var latValue = G_PAD.dataMin + (px / (imageWidth - 1)) * range;
+        var fx = (latValue - G_PAD.dataMin) / G_REGION_STEP;
         var x0 = Math.min(count, Math.floor(fx));
         var x1 = Math.min(count, x0 + 1);
         var tx = fx - x0;
@@ -1094,32 +1141,6 @@
         var v1 = v01 + (v11 - v01) * tx;
         var value = v0 + (v1 - v0) * ty;
 
-        var f00 = nodeFrontUtil[y0 * side + x0];
-        var f10 = nodeFrontUtil[y0 * side + x1];
-        var f01 = nodeFrontUtil[y1 * side + x0];
-        var f11 = nodeFrontUtil[y1 * side + x1];
-        var rf0 = f00 + (f10 - f00) * tx;
-        var rf1 = f01 + (f11 - f01) * tx;
-        var frontUtilValue = rf0 + (rf1 - rf0) * ty;
-
-        var r00 = nodeRearUtil[y0 * side + x0];
-        var r10 = nodeRearUtil[y0 * side + x1];
-        var r01 = nodeRearUtil[y1 * side + x0];
-        var r11 = nodeRearUtil[y1 * side + x1];
-        var rr0 = r00 + (r10 - r00) * tx;
-        var rr1 = r01 + (r11 - r01) * tx;
-        var rearUtilValue = rr0 + (rr1 - rr0) * ty;
-
-        var vehicleState = model.classifyVehicleState(
-          frontUtilValue,
-          rearUtilValue,
-          longValue,
-          latValue
-        );
-        var lossColor = vehicleState && vehicleState.code === 'loss-of-control'
-          ? G_STATE_COLORS['loss-of-control']
-          : null;
-
         var t = Math.tanh(value / G_DELTA_SCALE_PP);
         var lutIndex = clamp(Math.round((t + 1) * 127.5), 0, 255);
         var colorIndex = lutIndex * 4;
@@ -1127,85 +1148,11 @@
         var baseG = gHeatColorLut[colorIndex + 1];
         var baseB = gHeatColorLut[colorIndex + 2];
 
-        pixelStates[py * imageWidth + px] = vehicleState
-          ? (G_STATE_INDEX[vehicleState.code] || 0)
-          : 0;
-
-        if (lossColor) {
-          // Loss of control: red/black diagonal stripes at 70% opacity over the
-          // ΔU field. This dims the impossible over/under heatmap underneath.
-          var stripe = ((px + py) % 16) < 8;
-          var stripeR = stripe ? lossColor[0] : 0;
-          var stripeG = stripe ? lossColor[1] : 0;
-          var stripeB = stripe ? lossColor[2] : 0;
-          var lossAlpha = 0.70;
-          pixels[dataIndex] = Math.round(
-            baseR * (1 - lossAlpha) + stripeR * lossAlpha
-          );
-          pixels[dataIndex + 1] = Math.round(
-            baseG * (1 - lossAlpha) + stripeG * lossAlpha
-          );
-          pixels[dataIndex + 2] = Math.round(
-            baseB * (1 - lossAlpha) + stripeB * lossAlpha
-          );
-          pixels[dataIndex + 3] = 255;
-        } else {
-          pixels[dataIndex] = baseR;
-          pixels[dataIndex + 1] = baseG;
-          pixels[dataIndex + 2] = baseB;
-          pixels[dataIndex + 3] = 255;
-        }
+        pixels[dataIndex] = baseR;
+        pixels[dataIndex + 1] = baseG;
+        pixels[dataIndex + 2] = baseB;
+        pixels[dataIndex + 3] = 255;
         dataIndex += 4;
-      }
-    }
-
-    // Multi-pixel contours make each state region legible without hiding the
-    // rest of the field. The sample canvas is supersampled, so radius 3 here
-    // becomes a clearly bolder outline after downscaling.
-    var contourRadius = 3;
-    for (var borderPy = 0; borderPy < imageHeight; borderPy += 1) {
-      for (var borderPx = 0; borderPx < imageWidth; borderPx += 1) {
-        var borderIndex = borderPy * imageWidth + borderPx;
-        var borderState = pixelStates[borderIndex];
-        if (!borderState) {
-          continue;
-        }
-        var isBoundary = false;
-        for (var borderDy = -contourRadius;
-          borderDy <= contourRadius && !isBoundary;
-          borderDy += 1) {
-          var neighborY = borderPy + borderDy;
-          if (neighborY < 0 || neighborY >= imageHeight) {
-            continue;
-          }
-          for (var borderDx = -contourRadius;
-            borderDx <= contourRadius;
-            borderDx += 1) {
-            if (borderDx === 0 && borderDy === 0) {
-              continue;
-            }
-            var neighborX = borderPx + borderDx;
-            if (neighborX < 0 || neighborX >= imageWidth) {
-              continue;
-            }
-            if (pixelStates[neighborY * imageWidth + neighborX] !== borderState) {
-              isBoundary = true;
-              break;
-            }
-          }
-        }
-        if (!isBoundary) {
-          continue;
-        }
-        var borderColor = G_STATE_COLORS[G_STATE_ORDER[borderState - 1]];
-        if (!borderColor) {
-          continue;
-        }
-        var borderDataIndex = borderIndex * 4;
-        pixels[borderDataIndex] = borderColor[0];
-        pixels[borderDataIndex + 1] = borderColor[1];
-        pixels[borderDataIndex + 2] = borderColor[2];
-        pixels[borderDataIndex + 3] = 255;
       }
     }
 
@@ -1213,7 +1160,10 @@
     gLastNodeStateIndex = nodeStateIndex;
     gLastStateSide = side;
     gLastStateCount = count;
+    gLastNodeFrontUtil = nodeFrontUtil;
+    gLastNodeRearUtil = nodeRearUtil;
     drawGRegionView();
+    renderGVectorOverlay();
     updateGStateLabels(nodeStateIndex, side, count);
   }
 
@@ -1231,9 +1181,9 @@
     var plotHeight = G_PAD.bottom - G_PAD.top;
     var sampleWidth = gRegionSampleCanvas.width;
     var sampleHeight = gRegionSampleCanvas.height;
-    var fullSpan = G_PAD.gMax - G_PAD.gMin;
-    var sourceX = ((gView.latMin - G_PAD.gMin) / fullSpan) * sampleWidth;
-    var sourceY = ((gView.longMin - G_PAD.gMin) / fullSpan) * sampleHeight;
+    var fullSpan = G_PAD.dataMax - G_PAD.dataMin;
+    var sourceX = ((gView.latMin - G_PAD.dataMin) / fullSpan) * sampleWidth;
+    var sourceY = ((gView.longMin - G_PAD.dataMin) / fullSpan) * sampleHeight;
     var sourceWidth = ((gView.latMax - gView.latMin) / fullSpan) * sampleWidth;
     var sourceHeight = ((gView.longMax - gView.longMin) / fullSpan) * sampleHeight;
     sourceX = clamp(sourceX, 0, sampleWidth);
@@ -1257,6 +1207,199 @@
       plotWidth,
       plotHeight
     );
+  }
+
+  function buildGVectorStateMask() {
+    if (!gLastNodeFrontUtil || !gLastNodeRearUtil ||
+      !gLastStateSide || !gLastStateCount) {
+      return null;
+    }
+
+    var size = G_VECTOR_SAMPLE_SIZE;
+    var states = new Uint8Array(size * size);
+    var nodeSide = gLastStateSide;
+    var nodeCount = gLastStateCount;
+    var dataMin = G_PAD.dataMin;
+    var nodeStep = G_REGION_STEP;
+    var latSpan = gView.latMax - gView.latMin;
+    var longSpan = gView.longMax - gView.longMin;
+    var cellLat = latSpan / (size - 1);
+    var cellLong = longSpan / (size - 1);
+
+    for (var row = 0; row < size; row += 1) {
+      var longValue = gView.longMin + row * cellLong;
+      var fy = clamp((longValue - dataMin) / nodeStep, 0, nodeCount);
+      var y0 = Math.min(nodeCount, Math.floor(fy));
+      var y1 = Math.min(nodeCount, y0 + 1);
+      var ty = fy - y0;
+      for (var column = 0; column < size; column += 1) {
+        var latValue = gView.latMin + column * cellLat;
+        var fx = clamp((latValue - dataMin) / nodeStep, 0, nodeCount);
+        var x0 = Math.min(nodeCount, Math.floor(fx));
+        var x1 = Math.min(nodeCount, x0 + 1);
+        var tx = fx - x0;
+
+        var f00 = gLastNodeFrontUtil[y0 * nodeSide + x0];
+        var f10 = gLastNodeFrontUtil[y0 * nodeSide + x1];
+        var f01 = gLastNodeFrontUtil[y1 * nodeSide + x0];
+        var f11 = gLastNodeFrontUtil[y1 * nodeSide + x1];
+        var rf0 = f00 + (f10 - f00) * tx;
+        var rf1 = f01 + (f11 - f01) * tx;
+        var frontUtil = rf0 + (rf1 - rf0) * ty;
+
+        var r00 = gLastNodeRearUtil[y0 * nodeSide + x0];
+        var r10 = gLastNodeRearUtil[y0 * nodeSide + x1];
+        var r01 = gLastNodeRearUtil[y1 * nodeSide + x0];
+        var r11 = gLastNodeRearUtil[y1 * nodeSide + x1];
+        var rr0 = r00 + (r10 - r00) * tx;
+        var rr1 = r01 + (r11 - r01) * tx;
+        var rearUtil = rr0 + (rr1 - rr0) * ty;
+
+        var vehicleState = model.classifyVehicleState(
+          frontUtil,
+          rearUtil,
+          longValue,
+          latValue
+        );
+        if (vehicleState) {
+          states[row * size + column] =
+            G_STATE_INDEX[vehicleState.code] || 0;
+        }
+      }
+    }
+
+    return {
+      states: states,
+      width: size,
+      height: size,
+      latMin: gView.latMin,
+      longMin: gView.longMin,
+      cellLat: cellLat,
+      cellLong: cellLong
+    };
+  }
+
+  function renderGVectorOverlay() {
+    var lossFill = $('gPadLossFill');
+    var outlineGroup = $('gPadStateOutlines');
+    if (!lossFill || !outlineGroup) {
+      return;
+    }
+
+    outlineGroup.innerHTML = '';
+    lossFill.setAttribute('d', '');
+
+    var mask = buildGVectorStateMask();
+    if (!mask) {
+      return;
+    }
+
+    var width = mask.width;
+    var height = mask.height;
+    var states = mask.states;
+    var cellLat = mask.cellLat;
+    var cellLong = mask.cellLong;
+    var lossState = G_STATE_INDEX['loss-of-control'];
+
+    // Loss region: horizontal runs of view-resolution loss cells, filled by the
+    // SVG hatch pattern. Both the pattern and the outline stay screen-fixed.
+    var lossRuns = [];
+    for (var row = 0; row < height; row += 1) {
+      var rowOffset = row * width;
+      var px = 0;
+      while (px < width) {
+        if (states[rowOffset + px] !== lossState) {
+          px += 1;
+          continue;
+        }
+        var runStart = px;
+        while (px + 1 < width && states[rowOffset + px + 1] === lossState) {
+          px += 1;
+        }
+        var runEnd = px;
+        var lat0 = mask.latMin + (runStart - 0.5) * cellLat;
+        var lat1 = mask.latMin + (runEnd + 0.5) * cellLat;
+        var long0 = mask.longMin + (row - 0.5) * cellLong;
+        var long1 = mask.longMin + (row + 0.5) * cellLong;
+        var x0 = gPadX(lat0);
+        var x1 = gPadX(lat1);
+        var y0 = gPadY(long0);
+        var y1 = gPadY(long1);
+        lossRuns.push(
+          'M' + x0.toFixed(2) + ' ' + y0.toFixed(2) +
+          'H' + x1.toFixed(2) +
+          'V' + y1.toFixed(2) +
+          'H' + x0.toFixed(2) + 'Z'
+        );
+        px += 1;
+      }
+    }
+    lossFill.setAttribute('d', lossRuns.join(''));
+
+    var statePaths = [];
+    for (var stateIndex = 0;
+      stateIndex <= G_STATE_ORDER.length;
+      stateIndex += 1) {
+      statePaths[stateIndex] = [];
+    }
+
+    function addVertical(state, lat, long) {
+      var x = gPadX(lat).toFixed(2);
+      var y0 = gPadY(long - cellLong / 2).toFixed(2);
+      var y1 = gPadY(long + cellLong / 2).toFixed(2);
+      statePaths[state].push('M' + x + ' ' + y0 + 'L' + x + ' ' + y1);
+    }
+
+    function addHorizontal(state, lat, long) {
+      var y = gPadY(long).toFixed(2);
+      var x0 = gPadX(lat - cellLat / 2).toFixed(2);
+      var x1 = gPadX(lat + cellLat / 2).toFixed(2);
+      statePaths[state].push('M' + x0 + ' ' + y + 'L' + x1 + ' ' + y);
+    }
+
+    for (var maskRow = 0; maskRow < height; maskRow += 1) {
+      var maskRowOffset = maskRow * width;
+      var longCenter = mask.longMin + maskRow * cellLong;
+      for (var maskColumn = 0; maskColumn < width; maskColumn += 1) {
+        var state = states[maskRowOffset + maskColumn];
+        if (!state) {
+          continue;
+        }
+        var latCenter = mask.latMin + maskColumn * cellLat;
+        if (maskColumn < width - 1 &&
+          states[maskRowOffset + maskColumn + 1] !== state) {
+          addVertical(state, latCenter + cellLat / 2, longCenter);
+        }
+        if (maskRow < height - 1 &&
+          states[maskRowOffset + width + maskColumn] !== state) {
+          addHorizontal(state, latCenter, longCenter + cellLong / 2);
+        }
+        if (maskColumn > 0 &&
+          states[maskRowOffset + maskColumn - 1] === 0) {
+          addVertical(state, latCenter - cellLat / 2, longCenter);
+        }
+        if (maskRow > 0 &&
+          states[maskRowOffset - width + maskColumn] === 0) {
+          addHorizontal(state, latCenter, longCenter - cellLong / 2);
+        }
+      }
+    }
+
+    statePaths.forEach(function (segments, stateIndex) {
+      if (!segments.length) {
+        return;
+      }
+      var code = G_STATE_ORDER[stateIndex - 1];
+      var color = G_STATE_COLORS[code];
+      if (!color) {
+        return;
+      }
+      outlineGroup.appendChild(createSvgElement('path', {
+        d: segments.join(''),
+        class: 'g-pad-state-outline',
+        stroke: 'rgb(' + color[0] + ', ' + color[1] + ', ' + color[2] + ')'
+      }));
+    });
   }
 
   function updateGStateLabels(nodeStateIndex, side, count) {
@@ -1335,8 +1478,8 @@
 
       var labelRow = Math.floor(bestNode / side);
       var labelColumn = bestNode % side;
-      var labelLat = G_PAD.gMin + labelColumn * G_REGION_STEP;
-      var labelLong = G_PAD.gMin + labelRow * G_REGION_STEP;
+      var labelLat = G_PAD.dataMin + labelColumn * G_REGION_STEP;
+      var labelLong = G_PAD.dataMin + labelRow * G_REGION_STEP;
       if (labelLat < gView.latMin || labelLat > gView.latMax ||
         labelLong < gView.longMin || labelLong > gView.longMax) {
         continue;
@@ -1494,6 +1637,7 @@
   function updateGView() {
     buildGPad();
     drawGRegionView();
+    renderGVectorOverlay();
     if (gLastNodeStateIndex && gLastStateSide) {
       updateGStateLabels(
         gLastNodeStateIndex,
@@ -1691,6 +1835,10 @@
     var viewPanning = false;
     var viewPanPointerId = null;
     var viewPanStart = null;
+    var padTouchPointers = new Map();
+    var padPinch = null;
+    var padTouchSingle = null;
+    var padSuppressTouchSingle = false;
 
     function syncToolButton() {
       var hand = gPadTool === 'hand';
@@ -1700,14 +1848,15 @@
       }
       toolButton.classList.toggle('is-hand', hand);
       toolButton.setAttribute('aria-pressed', hand ? 'true' : 'false');
-      toolButton.textContent = hand ? '拖动' : '设置 G';
+      // The label names the action, not the current tool.
+      toolButton.textContent = hand ? '设置 G' : '拖动';
       toolButton.title = hand
-        ? '当前工具：拖动视图；点击切换到设置 G'
-        : '当前工具：设置 G；点击切换到拖动视图';
+        ? '切换到设置 G'
+        : '切换到拖动视图';
       toolButton.setAttribute('aria-label',
         hand
-          ? '当前工具：拖动视图，点击切换到设置 G'
-          : '当前工具：设置 G，点击切换到拖动视图');
+          ? '切换到设置 G'
+          : '切换到拖动视图');
     }
 
     if (toolButton) {
@@ -1750,9 +1899,144 @@
       );
     }
 
+    function viewFractionsFromClient(clientX, clientY) {
+      var rect = svg.getBoundingClientRect();
+      if (!(rect.width > 0) || !(rect.height > 0)) {
+        return null;
+      }
+      var px = (clientX - rect.left) * (G_PAD.width / rect.width);
+      var py = (clientY - rect.top) * (G_PAD.height / rect.height);
+      var plotWidth = G_PAD.width - G_PAD.left - G_PAD.right;
+      var plotHeight = G_PAD.bottom - G_PAD.top;
+      return {
+        x: clamp((px - G_PAD.left) / plotWidth, 0, 1),
+        y: clamp((py - G_PAD.top) / plotHeight, 0, 1)
+      };
+    }
+
+    function cancelPadSingleGesture() {
+      gPadDragging = false;
+      gPadPointerId = null;
+      padTouchSingle = null;
+      viewPanning = false;
+      viewPanPointerId = null;
+      viewPanStart = null;
+      pad.classList.remove('is-panning');
+    }
+
+    function beginPadPinch() {
+      var touches = Array.from(padTouchPointers.values());
+      if (touches.length < 2) {
+        return;
+      }
+      cancelPadSingleGesture();
+      var midX = (touches[0].x + touches[1].x) / 2;
+      var midY = (touches[0].y + touches[1].y) / 2;
+      var distance = Math.hypot(
+        touches[0].x - touches[1].x,
+        touches[0].y - touches[1].y
+      );
+      var fractions = viewFractionsFromClient(midX, midY);
+      if (!fractions) {
+        return;
+      }
+      var span = gViewSpan();
+      padPinch = {
+        firstId: touches[0].id,
+        secondId: touches[1].id,
+        startDistance: Math.max(distance, 12),
+        startSpan: span,
+        anchorLat: gView.latMin + fractions.x * span,
+        anchorLong: gView.longMin + fractions.y * span
+      };
+      // Do not let the finger left over after a pinch drag the G cursor.
+      padSuppressTouchSingle = true;
+      pad.classList.add('is-pinching');
+    }
+
+    function updatePadPinch() {
+      if (!padPinch) {
+        return;
+      }
+      var first = padTouchPointers.get(padPinch.firstId);
+      var second = padTouchPointers.get(padPinch.secondId);
+      if (!first || !second) {
+        return;
+      }
+      var midX = (first.x + second.x) / 2;
+      var midY = (first.y + second.y) / 2;
+      var distance = Math.max(
+        Math.hypot(first.x - second.x, first.y - second.y),
+        12
+      );
+      var fractions = viewFractionsFromClient(midX, midY);
+      if (!fractions) {
+        return;
+      }
+      var span = clamp(
+        padPinch.startSpan * padPinch.startDistance / distance,
+        G_VIEW_MIN_SPAN,
+        G_PAD.dataMax - G_PAD.dataMin
+      );
+      var latMin = padPinch.anchorLat - fractions.x * span;
+      var longMin = padPinch.anchorLong - fractions.y * span;
+      setGView(latMin, latMin + span, longMin, longMin + span);
+    }
+
+    function panViewFrom(event) {
+      var rect = svg.getBoundingClientRect();
+      if (!(rect.width > 0) || !(rect.height > 0)) {
+        return;
+      }
+      var dx = (event.clientX - viewPanStart.x) * (G_PAD.width / rect.width);
+      var dy = (event.clientY - viewPanStart.y) * (G_PAD.height / rect.height);
+      var plotWidth = G_PAD.width - G_PAD.left - G_PAD.right;
+      var plotHeight = G_PAD.bottom - G_PAD.top;
+      var span = gViewSpan();
+      var latShift = -(dx / plotWidth) * span;
+      var longShift = -(dy / plotHeight) * span;
+      setGView(
+        viewPanStart.latMin + latShift,
+        viewPanStart.latMin + latShift + span,
+        viewPanStart.longMin + longShift,
+        viewPanStart.longMin + longShift + span
+      );
+    }
+
     pad.addEventListener('pointerdown', function (event) {
       event.preventDefault();
       stopGPlayback(false);
+
+      if (event.pointerType === 'touch') {
+        padTouchPointers.set(event.pointerId, {
+          id: event.pointerId,
+          x: event.clientX,
+          y: event.clientY
+        });
+        if (pad.setPointerCapture) {
+          pad.setPointerCapture(event.pointerId);
+        }
+        if (padTouchPointers.size === 2) {
+          beginPadPinch();
+          return;
+        }
+        if (padTouchPointers.size > 2 || padPinch || padSuppressTouchSingle) {
+          return;
+        }
+        padTouchSingle = {
+          id: event.pointerId,
+          startX: event.clientX,
+          startY: event.clientY,
+          moved: false,
+          mode: gPadTool === 'hand' ? 'pan' : 'set'
+        };
+        try {
+          pad.focus({ preventScroll: true });
+        } catch (error) {
+          pad.focus();
+        }
+        return;
+      }
 
       var handPan = event.button === 0 && gPadTool === 'hand';
       if (event.button === 1 || event.button === 2 || event.shiftKey || handPan) {
@@ -1785,25 +2069,54 @@
     });
 
     pad.addEventListener('pointermove', function (event) {
-      if (viewPanning && event.pointerId === viewPanPointerId) {
-        event.preventDefault();
-        var rect = svg.getBoundingClientRect();
-        if (!(rect.width > 0) || !(rect.height > 0)) {
+      if (event.pointerType === 'touch') {
+        var tracked = padTouchPointers.get(event.pointerId);
+        if (!tracked) {
           return;
         }
-        var dx = (event.clientX - viewPanStart.x) * (G_PAD.width / rect.width);
-        var dy = (event.clientY - viewPanStart.y) * (G_PAD.height / rect.height);
-        var plotWidth = G_PAD.width - G_PAD.left - G_PAD.right;
-        var plotHeight = G_PAD.bottom - G_PAD.top;
-        var span = gViewSpan();
-        var latShift = -(dx / plotWidth) * span;
-        var longShift = -(dy / plotHeight) * span;
-        setGView(
-          viewPanStart.latMin + latShift,
-          viewPanStart.latMin + latShift + span,
-          viewPanStart.longMin + longShift,
-          viewPanStart.longMin + longShift + span
-        );
+        tracked.x = event.clientX;
+        tracked.y = event.clientY;
+        event.preventDefault();
+
+        if (padPinch) {
+          updatePadPinch();
+          return;
+        }
+        if (padSuppressTouchSingle || !padTouchSingle ||
+          event.pointerId !== padTouchSingle.id) {
+          return;
+        }
+
+        var touchDx = event.clientX - padTouchSingle.startX;
+        var touchDy = event.clientY - padTouchSingle.startY;
+        if (!padTouchSingle.moved && Math.hypot(touchDx, touchDy) < 5) {
+          return;
+        }
+        padTouchSingle.moved = true;
+
+        if (padTouchSingle.mode === 'pan') {
+          if (!viewPanning) {
+            viewPanning = true;
+            viewPanPointerId = event.pointerId;
+            viewPanStart = {
+              x: padTouchSingle.startX,
+              y: padTouchSingle.startY,
+              latMin: gView.latMin,
+              longMin: gView.longMin
+            };
+            pad.classList.add('is-panning');
+          }
+          panViewFrom(event);
+          return;
+        }
+
+        applyPointer(event);
+        return;
+      }
+
+      if (viewPanning && event.pointerId === viewPanPointerId) {
+        event.preventDefault();
+        panViewFrom(event);
         return;
       }
 
@@ -1815,6 +2128,41 @@
     });
 
     function releasePointer(event) {
+      if (event.pointerType === 'touch') {
+        padTouchPointers.delete(event.pointerId);
+        if (pad.hasPointerCapture && pad.hasPointerCapture(event.pointerId)) {
+          pad.releasePointerCapture(event.pointerId);
+        }
+
+        if (padPinch) {
+          if (!padTouchPointers.has(padPinch.firstId) ||
+            !padTouchPointers.has(padPinch.secondId)) {
+            padPinch = null;
+            pad.classList.remove('is-pinching');
+          }
+          if (padTouchPointers.size === 0) {
+            padSuppressTouchSingle = false;
+            cancelPadSingleGesture();
+          }
+          return;
+        }
+
+        if (padTouchSingle && padTouchSingle.id === event.pointerId) {
+          if (event.type === 'pointerup' &&
+            padTouchSingle.mode === 'set' &&
+            !padTouchSingle.moved) {
+            applyPointer(event);
+          }
+          padTouchSingle = null;
+        }
+
+        if (padTouchPointers.size === 0) {
+          padSuppressTouchSingle = false;
+          cancelPadSingleGesture();
+        }
+        return;
+      }
+
       if (viewPanning && event.pointerId === viewPanPointerId) {
         viewPanning = false;
         viewPanPointerId = null;

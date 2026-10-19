@@ -548,9 +548,9 @@ test('positive lateral G is a right turn and negative lateral G mirrors the load
   approx(right.wheelGrip.FL.capacity, right.tyreGrip.frontOuter.capacity, 1e-9, 'wheel grip FL');
   approx(left.wheelGrip.FR.capacity, left.tyreGrip.frontOuter.capacity, 1e-9, 'wheel grip FR');
 
-  const clamped = model.calculate({ ...base, lateralG: 3, longitudinalG: -3 });
-  approx(clamped.state.lateralG, 2, 1e-12, 'lateral clamp');
-  approx(clamped.state.longitudinalG, -2, 1e-12, 'longitudinal clamp');
+  const clamped = model.calculate({ ...base, lateralG: 6, longitudinalG: -6 });
+  approx(clamped.state.lateralG, 5, 1e-12, 'lateral clamp');
+  approx(clamped.state.longitudinalG, -5, 1e-12, 'longitudinal clamp');
 });
 
 test('combined lateral + longitudinal demand moves the balance away from the lateral-only case', () => {

@@ -1621,8 +1621,8 @@
     tireRearWidthM: [0.10, 0.50],
     tireRearRadiusM: [0.20, 0.50],
     brakeBiasFront: [0.30, 0.90],
-    lateralG: [-2.00, 2.00],
-    longitudinalG: [-2.00, 2.00]
+    lateralG: [-5.00, 5.00],
+    longitudinalG: [-5.00, 5.00]
   });
 
   var NEUTRAL_BAND_PP = 0.35;
