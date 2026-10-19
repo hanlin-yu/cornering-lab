@@ -4374,6 +4374,8 @@ input:focus-visible {
     position: relative;
     top: 0;
     max-height: none;
+    overflow-y: visible;
+    overscroll-behavior: auto;
     order: 2;
     width: 100%;
   }
