@@ -65,7 +65,7 @@
     'corner-exit-understeer': [83, 213, 199],
     'corner-entry-understeer': [142, 231, 150],
     'power-under': [53, 213, 223],
-    'front-lock': [255, 209, 102],
+    'front-lock': [183, 140, 255],
     'corner-exit-oversteer': [255, 139, 94],
     'corner-entry-oversteer': [255, 191, 94],
     'power-over': [255, 122, 47],

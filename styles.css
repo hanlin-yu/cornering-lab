@@ -785,7 +785,7 @@ input:focus-visible {
 .g-vehicle-state[data-state="corner-exit-understeer"] { --state-color: #53d5c7; }
 .g-vehicle-state[data-state="corner-entry-understeer"] { --state-color: #8ee796; }
 .g-vehicle-state[data-state="power-under"] { --state-color: #35d5df; }
-.g-vehicle-state[data-state="front-lock"] { --state-color: #ffd166; }
+.g-vehicle-state[data-state="front-lock"] { --state-color: #b78cff; }
 .g-vehicle-state[data-state="corner-exit-oversteer"] { --state-color: #ff8b5e; }
 .g-vehicle-state[data-state="corner-entry-oversteer"] { --state-color: #ffbf5e; }
 .g-vehicle-state[data-state="power-over"] { --state-color: #ff7a2f; }
@@ -871,7 +871,7 @@ input:focus-visible {
 .g-state-key span[data-state="corner-exit-understeer"] { --state-color: #53d5c7; }
 .g-state-key span[data-state="corner-entry-understeer"] { --state-color: #8ee796; }
 .g-state-key span[data-state="power-under"] { --state-color: #35d5df; }
-.g-state-key span[data-state="front-lock"] { --state-color: #ffd166; }
+.g-state-key span[data-state="front-lock"] { --state-color: #b78cff; }
 .g-state-key span[data-state="corner-exit-oversteer"] { --state-color: #ff8b5e; }
 .g-state-key span[data-state="corner-entry-oversteer"] { --state-color: #ffbf5e; }
 .g-state-key span[data-state="power-over"] { --state-color: #ff7a2f; }
