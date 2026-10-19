@@ -656,6 +656,30 @@ test('wheel lift is clamped at zero and preserves axle normal load', () => {
   assert.ok(r.warnings.some((warning) => warning.code === 'wheel-lift'));
 });
 
+test('extreme longitudinal transfer keeps total normal load at vehicle weight', () => {
+  const r = model.calculate({
+    ...model.cloneBaseState(),
+    lateralG: 0,
+    longitudinalG: 2,
+    cgHeightM: 0.70,
+    wheelbaseM: 2.0,
+    frontWeight: 0.30
+  });
+  approx(
+    r.axleLoads.front + r.axleLoads.rear,
+    r.mass * model.G,
+    1e-6,
+    'axle loads sum to vehicle weight'
+  );
+  approx(
+    r.wheelLoads.FL + r.wheelLoads.FR + r.wheelLoads.RL + r.wheelLoads.RR,
+    r.mass * model.G,
+    1e-6,
+    'wheel loads sum to vehicle weight'
+  );
+  assert.ok(r.axleLoads.front >= 0 && r.axleLoads.rear >= 0);
+});
+
 test('tyre spring rate is in series with the suspension wheel rate', () => {
   const base = model.cloneBaseState();
   const r = model.calculate(base);
