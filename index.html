@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="dark">
-  <meta name="description" content="基于 Assetto Corsa 解包数据的稳态过弯模型：调节弹簧、防倾杆与载荷敏感轮胎 μ，观察前后轴抓地力和推头 / 甩尾平衡。">
+  <meta name="description" content="基于 Assetto Corsa 解包数据的稳态过弯模型：调节轮上弹簧率、防倾杆轮率与载荷敏感轮胎 μ，观察前后轴抓地力和推头 / 甩尾平衡。">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23081014'/%3E%3Ccircle cx='32' cy='32' r='18' fill='none' stroke='%235ad7d2' stroke-width='3'/%3E%3Cpath d='M14 32h12M38 32h12' stroke='%235ad7d2' stroke-width='3' stroke-linecap='round'/%3E%3Ccircle cx='32' cy='32' r='4' fill='%23eafbfc'/%3E%3C/svg%3E">
   <title>Cornering Lab · 底盘调校与过弯平衡</title>
   <link rel="stylesheet" href="styles.css">
@@ -149,12 +149,12 @@
         <div class="axle-controls axle-controls--front">
           <div class="axle-control-head">
             <div class="axle-id"><span class="axle-dot"></span>前轴 <span>FRONT</span></div>
-            <span id="frontStiffnessSummary">62.0 N/mm</span>
+            <span id="frontStiffnessSummary" title="合计轮率 = 轮上弹簧率 + 防倾杆轮率（每轮）">62.0 N/mm</span>
           </div>
 
           <div class="param-field">
             <div class="param-row">
-              <label for="frontSpringRange">弹簧率 <span>SPRING</span></label>
+              <label for="frontSpringRange">轮上弹簧率 <span>SPRING</span></label>
               <div class="param-value">
                 <input
                   id="frontSpringNumber"
@@ -165,7 +165,7 @@
                   step="0.1"
                   value="23.0"
                   inputmode="decimal"
-                  aria-label="前弹簧率，单位牛每毫米"
+                  aria-label="前轮上弹簧率，单位牛每毫米"
                 >
                 <span>N/mm</span>
               </div>
@@ -179,13 +179,13 @@
               max="200"
               step="0.1"
               value="23"
-              aria-label="前弹簧率滑杆"
+              aria-label="前轮上弹簧率滑杆"
             >
           </div>
 
           <div class="param-field">
             <div class="param-row">
-              <label for="frontArbRange">防倾杆 <span>ARB</span></label>
+              <label for="frontArbRange">防倾杆轮率 <span>ARB</span></label>
               <div class="param-value">
                 <input
                   id="frontArbNumber"
@@ -196,7 +196,7 @@
                   step="0.1"
                   value="39.0"
                   inputmode="decimal"
-                  aria-label="前防倾杆等效轮端刚度，单位牛每毫米"
+                  aria-label="前防倾杆轮率，单位牛每毫米"
                 >
                 <span>N/mm</span>
               </div>
@@ -210,7 +210,7 @@
               max="80"
               step="0.1"
               value="39"
-              aria-label="前防倾杆刚度滑杆"
+              aria-label="前防倾杆轮率滑杆"
             >
           </div>
         </div>
@@ -218,12 +218,12 @@
         <div class="axle-controls axle-controls--rear">
           <div class="axle-control-head">
             <div class="axle-id"><span class="axle-dot"></span>后轴 <span>REAR</span></div>
-            <span id="rearStiffnessSummary">23.0 N/mm</span>
+            <span id="rearStiffnessSummary" title="合计轮率 = 轮上弹簧率 + 防倾杆轮率（每轮）">23.0 N/mm</span>
           </div>
 
           <div class="param-field">
             <div class="param-row">
-              <label for="rearSpringRange">弹簧率 <span>SPRING</span></label>
+              <label for="rearSpringRange">轮上弹簧率 <span>SPRING</span></label>
               <div class="param-value">
                 <input
                   id="rearSpringNumber"
@@ -234,7 +234,7 @@
                   step="0.1"
                   value="18.0"
                   inputmode="decimal"
-                  aria-label="后弹簧率，单位牛每毫米"
+                  aria-label="后轮上弹簧率，单位牛每毫米"
                 >
                 <span>N/mm</span>
               </div>
@@ -248,13 +248,13 @@
               max="200"
               step="0.1"
               value="18"
-              aria-label="后弹簧率滑杆"
+              aria-label="后轮上弹簧率滑杆"
             >
           </div>
 
           <div class="param-field">
             <div class="param-row">
-              <label for="rearArbRange">防倾杆 <span>ARB</span></label>
+              <label for="rearArbRange">防倾杆轮率 <span>ARB</span></label>
               <div class="param-value">
                 <input
                   id="rearArbNumber"
@@ -265,7 +265,7 @@
                   step="0.1"
                   value="5.0"
                   inputmode="decimal"
-                  aria-label="后防倾杆等效轮端刚度，单位牛每毫米"
+                  aria-label="后防倾杆轮率，单位牛每毫米"
                 >
                 <span>N/mm</span>
               </div>
@@ -279,7 +279,7 @@
               max="60"
               step="0.1"
               value="5"
-              aria-label="后防倾杆刚度滑杆"
+              aria-label="后防倾杆轮率滑杆"
             >
           </div>
         </div>
@@ -730,7 +730,7 @@
           <div class="source-block">
             <h4>机制 <span>MECHANISM</span></h4>
             <p class="model-copy">
-              弹簧与 ARB 先合并为各轴轮端刚度，再形成前后侧倾刚度分配，把横向载荷转移分到左右轮。纵向 G 通过质心高度与轴距在前后轴之间搬移垂直载荷；驱动力按所选的 RWD / FWD / AWD 分配，制动力默认取所选车型 AC brakes.ini 的前轴占比，也可在调校台调整。每只轮胎用 AC 的载荷敏感幂律，从实际 Fz 得到 μ 与 Fy,max；把每轴侧向与纵向需求合成为合力，与该轴总抓地力比较即得联合利用率。
+              轮上弹簧率与防倾杆轮率先合并为每侧轮端刚度，再形成前后侧倾刚度分配，把横向载荷转移分到左右轮。纵向 G 通过质心高度与轴距在前后轴之间搬移垂直载荷；驱动力按所选的 RWD / FWD / AWD 分配，制动力默认取所选车型 AC brakes.ini 的前轴占比，也可在调校台调整。每只轮胎用 AC 的载荷敏感幂律，从实际 Fz 得到 μ 与 Fy,max；把每轴侧向与纵向需求合成为合力，与该轴总抓地力比较即得联合利用率。
             </p>
             <pre class="formula-block"><code>lateralG > 0 = 右转 · lateralG < 0 = 左转
 Kφ = (k_spring + k_ARB) · t² / 2
@@ -754,7 +754,7 @@ U = F_res,axle / Fgrip,axle</code></pre>
               <li>AC 胶料参数只读；自定义模式可改 <b>μ_ref / k</b>，<b>FZ0</b> 继承上一次 AC 胶料。</li>
               <li>制动默认取所选车型 <b>brakes.ini</b>（均 COCKPIT_ADJUSTABLE = 0），页内可调；驱动默认取所选车型 drivetrain.ini，可选 FWD / AWD（AWD 固定 50/50）。纵向力分配与滑移无关，但仍决定每轴 Fx 和联合利用率。未建模 EBD。</li>
               <li>3D 底盘的轴距、轮距、悬架架构与硬点按所选车型数据绘制；AC 数据缺少减震器上支点时由几何推导，车身与防倾杆外形为示意。</li>
-              <li>ARB 的 AC 原文件注释与 CSP 文档在单位表述上存在差异；所载车型均按等效轮端 N/m 读取。</li>
+              <li>防倾杆轮率的 AC 原文件注释与 CSP 文档在单位表述上存在差异；所载车型均按轮端等效 N/m 读取。</li>
             </ul>
           </div>
         </div>

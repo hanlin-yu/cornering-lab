@@ -209,14 +209,14 @@
       en: 'UNDERSTEER',
       kicker: 'FRONT AXLE SATURATES FIRST',
       sub: '前轴联合利用率更高，前轮先失去侧向余量。',
-      hint: '往中性：软化前轴弹簧 / ARB，或增加后轴侧倾刚度。'
+      hint: '往中性：降低前轴轮上弹簧率或防倾杆轮率，或增加后轴侧倾刚度。'
     },
     oversteer: {
       cn: '甩尾',
       en: 'OVERSTEER',
       kicker: 'REAR AXLE SATURATES FIRST',
       sub: '后轴联合利用率更高，后轮先失去侧向余量。',
-      hint: '往中性：软化后轴弹簧 / ARB，或增加前轴侧倾刚度。'
+      hint: '往中性：降低后轴轮上弹簧率或防倾杆轮率，或增加前轴侧倾刚度。'
     },
     neutral: {
       cn: '中性',
@@ -515,14 +515,14 @@
         '[FRONT] / [REAR] TRACK'],
       ['质心高度', profile.cgHeightM.toFixed(3) + ' m',
         'RADIUS − BASEY（前后加权估算）'],
-      ['弹簧率 F / R',
+      ['轮上弹簧率 F / R',
         (profile.springFrontNm / 1000).toFixed(1) + ' / ' +
         (profile.springRearNm / 1000).toFixed(1) + ' N/mm',
         'SPRING_RATE ' + profile.springFrontNm + ' / ' + profile.springRearNm + ' N/m'],
-      ['ARB F / R',
+      ['防倾杆轮率 F / R',
         (profile.arbFrontNm / 1000).toFixed(1) + ' / ' +
         (profile.arbRearNm / 1000).toFixed(1) + ' N/mm',
-        '[ARB] ' + profile.arbFrontNm + ' / ' + profile.arbRearNm + ' N/m · 轮端等效约定'],
+        '[ARB] ' + profile.arbFrontNm + ' / ' + profile.arbRearNm + ' N/m · 轮端等效'],
       ['制动前轴占比', biasPct + ' / ' + (100 - biasPct) + '%',
         profile.brakeSource + ' · COCKPIT_ADJUSTABLE = ' +
         (profile.cockpitBrakeAdjustable ? '1' : '0')],
@@ -2580,10 +2580,10 @@
         var note = $('autoBalanceNote');
         if (note) {
           if (solution.achieved) {
-            note.textContent = '已调前 ARB → ' + solution.value.toFixed(1) +
+            note.textContent = '已调前防倾杆轮率 → ' + solution.value.toFixed(1) +
               ' N/mm · 残余 ' + formatSigned(solution.deltaPP, 1) + ' pp';
           } else {
-            note.textContent = '当前范围无法完全配平；前 ARB 取边界 ' +
+            note.textContent = '当前范围无法完全配平；前防倾杆轮率取边界 ' +
               solution.value.toFixed(1) + ' N/mm · 残余 ' + formatSigned(solution.deltaPP, 1) + ' pp';
           }
         }
