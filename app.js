@@ -35,6 +35,7 @@
   };
   var gTrail = [];
   var gLastTrailPoint = null;
+  var gPadTool = 'set';
   var gPadDragging = false;
   var gPadPointerId = null;
   var gPlaying = false;
@@ -1686,9 +1687,36 @@
       return;
     }
     var svg = $('gPadSvg');
+    var toolButton = $('gToolButton');
     var viewPanning = false;
     var viewPanPointerId = null;
     var viewPanStart = null;
+
+    function syncToolButton() {
+      var hand = gPadTool === 'hand';
+      pad.classList.toggle('is-hand-tool', hand);
+      if (!toolButton) {
+        return;
+      }
+      toolButton.classList.toggle('is-hand', hand);
+      toolButton.setAttribute('aria-pressed', hand ? 'true' : 'false');
+      toolButton.textContent = hand ? '拖动' : '设置 G';
+      toolButton.title = hand
+        ? '当前工具：拖动视图；点击切换到设置 G'
+        : '当前工具：设置 G；点击切换到拖动视图';
+      toolButton.setAttribute('aria-label',
+        hand
+          ? '当前工具：拖动视图，点击切换到设置 G'
+          : '当前工具：设置 G，点击切换到拖动视图');
+    }
+
+    if (toolButton) {
+      toolButton.addEventListener('click', function () {
+        gPadTool = gPadTool === 'hand' ? 'set' : 'hand';
+        syncToolButton();
+      });
+    }
+    syncToolButton();
 
     function pointerToG(event) {
       var rect = svg.getBoundingClientRect();
@@ -1726,7 +1754,8 @@
       event.preventDefault();
       stopGPlayback(false);
 
-      if (event.button === 1 || event.button === 2 || event.shiftKey) {
+      var handPan = event.button === 0 && gPadTool === 'hand';
+      if (event.button === 1 || event.button === 2 || event.shiftKey || handPan) {
         viewPanning = true;
         viewPanPointerId = event.pointerId;
         viewPanStart = {
@@ -1735,6 +1764,7 @@
           latMin: gView.latMin,
           longMin: gView.longMin
         };
+        pad.classList.add('is-panning');
         if (pad.setPointerCapture) {
           pad.setPointerCapture(event.pointerId);
         }
@@ -1789,6 +1819,7 @@
         viewPanning = false;
         viewPanPointerId = null;
         viewPanStart = null;
+        pad.classList.remove('is-panning');
         if (pad.hasPointerCapture && pad.hasPointerCapture(event.pointerId)) {
           pad.releasePointerCapture(event.pointerId);
         }

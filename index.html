@@ -510,7 +510,7 @@
             id="gPad"
             tabindex="0"
             role="application"
-            aria-label="二维 G-G 输入：横轴为侧向 G，纵轴为纵向 G，向上为制动、向下为加速。拖动光标或使用方向键调节；滚轮缩放，右键或中键拖动平移。"
+            aria-label="二维 G-G 输入：横轴为侧向 G，纵轴为纵向 G，向上为制动、向下为加速。设置 G 工具下拖动光标或用方向键调节；拖动工具下左键平移；滚轮缩放。"
           >
             <canvas id="gPadRegionCanvas" class="g-pad-region-canvas" aria-hidden="true"></canvas>
             <svg id="gPadSvg" viewBox="0 0 320 320" aria-hidden="true">
@@ -542,6 +542,7 @@
               <span class="g-play-icon" aria-hidden="true"></span>
               <span id="gPlayLabel">扫弯回放</span>
             </button>
+            <button class="g-clear-button g-tool-button" id="gToolButton" type="button" aria-pressed="false" title="当前工具：设置 G；点击切换到拖动视图">设置 G</button>
             <button class="g-clear-button" id="gClearTrailButton" type="button">清轨迹</button>
             <button class="g-clear-button" id="gResetViewButton" type="button" title="滚轮缩放；右键 / 中键拖动平移；双击复位" aria-label="复位 G-G 视图">复位视图</button>
           </div>

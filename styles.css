@@ -607,6 +607,14 @@ input:focus-visible {
   user-select: none;
 }
 
+.g-pad.is-hand-tool {
+  cursor: grab;
+}
+
+.g-pad.is-panning {
+  cursor: grabbing;
+}
+
 .g-pad:focus-visible {
   outline: 1px solid var(--front);
   outline-offset: 2px;
@@ -741,6 +749,12 @@ input:focus-visible {
 .g-clear-button:hover {
   border-color: rgba(89, 217, 211, 0.48);
   color: #edfbfb;
+}
+
+.g-tool-button.is-hand {
+  border-color: rgba(242, 178, 94, 0.48);
+  color: #ffd7a0;
+  background: rgba(242, 178, 94, 0.08);
 }
 
 .g-play-icon {
