@@ -55,7 +55,7 @@
     'power-under': [53, 213, 223],
     'front-lock': [255, 209, 102],
     'rear-lock': [255, 79, 123],
-    'loss-of-control': [183, 140, 255]
+    'loss-of-control': [255, 59, 69]
   };
   var G_STATE_DESCRIPTIONS = {
     'power-over': '加速时后轴先达到 100% 联合利用率',
@@ -1015,12 +1015,19 @@
           : 0;
 
         if (lossColor) {
-          // Loss of control is the only region that keeps a categorical fill;
-          // all other regions keep the same ΔU colormap as the in-grip area.
-          pixels[dataIndex] = Math.round(baseR * 0.05 + lossColor[0] * 0.95);
-          pixels[dataIndex + 1] = Math.round(baseG * 0.05 + lossColor[1] * 0.95);
-          pixels[dataIndex + 2] = Math.round(baseB * 0.05 + lossColor[2] * 0.95);
-          pixels[dataIndex + 3] = 52;
+          // Loss of control is the only categorical region: red hazard stripes
+          // over a dark maroon field. All other regions keep the ΔU colormap.
+          var stripe = ((px + py) % 16) < 8;
+          if (stripe) {
+            pixels[dataIndex] = lossColor[0];
+            pixels[dataIndex + 1] = lossColor[1];
+            pixels[dataIndex + 2] = lossColor[2];
+          } else {
+            pixels[dataIndex] = 29;
+            pixels[dataIndex + 1] = 7;
+            pixels[dataIndex + 2] = 11;
+          }
+          pixels[dataIndex + 3] = 255;
         } else {
           pixels[dataIndex] = baseR;
           pixels[dataIndex + 1] = baseG;
@@ -1174,7 +1181,7 @@
       [-18, -14], [18, -14], [-18, 14], [18, 14]
     ];
     candidates.forEach(function (candidate) {
-      if (labelCount >= 7) {
+      if (candidate.code === 'loss-of-control' || labelCount >= 7) {
         return;
       }
       var stateCount = perStateCount[candidate.code] || 0;

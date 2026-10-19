@@ -779,7 +779,7 @@ input:focus-visible {
 .g-vehicle-state[data-state="power-under"] { --state-color: #35d5df; }
 .g-vehicle-state[data-state="front-lock"] { --state-color: #ffd166; }
 .g-vehicle-state[data-state="rear-lock"] { --state-color: #ff4f7b; }
-.g-vehicle-state[data-state="loss-of-control"] { --state-color: #b78cff; }
+.g-vehicle-state[data-state="loss-of-control"] { --state-color: #ff3b45; }
 
 .g-vehicle-state-dot {
   flex: 0 0 auto;
@@ -861,7 +861,7 @@ input:focus-visible {
 .g-state-key span[data-state="power-under"] { --state-color: #35d5df; }
 .g-state-key span[data-state="front-lock"] { --state-color: #ffd166; }
 .g-state-key span[data-state="rear-lock"] { --state-color: #ff4f7b; }
-.g-state-key span[data-state="loss-of-control"] { --state-color: #b78cff; }
+.g-state-key span[data-state="loss-of-control"] { --state-color: #ff3b45; }
 
 .g-state-key span[data-state] i {
   width: 7px;
@@ -869,6 +869,16 @@ input:focus-visible {
   border-radius: 2px;
   background: var(--state-color);
   box-shadow: 0 0 6px rgba(0, 0, 0, 0.2);
+}
+
+.g-state-key span[data-state="loss-of-control"] i {
+  border: 1px solid #ff8b91;
+  background: repeating-linear-gradient(
+    45deg,
+    #ff3b45 0 2px,
+    #2a070b 2px 4px
+  );
+  box-shadow: none;
 }
 
 .g-pad-state-labels text {
