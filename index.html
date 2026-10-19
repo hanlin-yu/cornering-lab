@@ -510,7 +510,7 @@
             id="gPad"
             tabindex="0"
             role="application"
-            aria-label="二维 G-G 输入：横轴为侧向 G，纵轴为纵向 G，向上为制动、向下为加速。拖动光标或使用方向键调节。"
+            aria-label="二维 G-G 输入：横轴为侧向 G，纵轴为纵向 G，向上为制动、向下为加速。拖动光标或使用方向键调节；滚轮缩放，右键或中键拖动平移。"
           >
             <canvas id="gPadRegionCanvas" class="g-pad-region-canvas" aria-hidden="true"></canvas>
             <svg id="gPadSvg" viewBox="0 0 320 320" aria-hidden="true">
@@ -520,17 +520,20 @@
                   <stop offset=".55" stop-color="#d8e7ea" stop-opacity=".3"/>
                   <stop offset="1" stop-color="#f2b25e" stop-opacity=".7"/>
                 </linearGradient>
+                <clipPath id="gPadPlotClip">
+                  <rect x="36" y="16" width="270" height="270"></rect>
+                </clipPath>
               </defs>
               <g id="gPadGrid" class="g-pad-grid"></g>
               <g id="gPadAxes" class="g-pad-axes"></g>
-              <g id="gPadAuxLines" class="g-pad-aux-lines" aria-hidden="true"></g>
-              <path id="gPadCornerGuide" class="g-pad-guide" fill="none"></path>
-              <path id="gPadTrail" class="g-pad-trail" fill="none"></path>
-              <g id="gPadStateLabels" class="g-pad-state-labels" aria-hidden="true"></g>
-              <line id="gPadProjectionX" class="g-pad-projection" aria-hidden="true"></line>
-              <line id="gPadProjectionY" class="g-pad-projection" aria-hidden="true"></line>
-              <circle id="gPadCursorHalo" class="g-pad-cursor-halo" r="10" aria-hidden="true"></circle>
-              <circle id="gPadCursor" class="g-pad-cursor" r="4.4" aria-hidden="true"></circle>
+              <g id="gPadAuxLines" class="g-pad-aux-lines" aria-hidden="true" clip-path="url(#gPadPlotClip)"></g>
+              <path id="gPadCornerGuide" class="g-pad-guide" fill="none" clip-path="url(#gPadPlotClip)"></path>
+              <path id="gPadTrail" class="g-pad-trail" fill="none" clip-path="url(#gPadPlotClip)"></path>
+              <g id="gPadStateLabels" class="g-pad-state-labels" aria-hidden="true" clip-path="url(#gPadPlotClip)"></g>
+              <line id="gPadProjectionX" class="g-pad-projection" aria-hidden="true" clip-path="url(#gPadPlotClip)"></line>
+              <line id="gPadProjectionY" class="g-pad-projection" aria-hidden="true" clip-path="url(#gPadPlotClip)"></line>
+              <circle id="gPadCursorHalo" class="g-pad-cursor-halo" r="10" aria-hidden="true" clip-path="url(#gPadPlotClip)"></circle>
+              <circle id="gPadCursor" class="g-pad-cursor" r="4.4" aria-hidden="true" clip-path="url(#gPadPlotClip)"></circle>
             </svg>
           </div>
 
@@ -540,6 +543,7 @@
               <span id="gPlayLabel">扫弯回放</span>
             </button>
             <button class="g-clear-button" id="gClearTrailButton" type="button">清轨迹</button>
+            <button class="g-clear-button" id="gResetViewButton" type="button" title="滚轮缩放；右键 / 中键拖动平移；双击复位" aria-label="复位 G-G 视图">复位视图</button>
           </div>
 
           <div class="g-vehicle-state" id="gVehicleState" data-state="grip" aria-live="polite">

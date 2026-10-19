@@ -26,6 +26,13 @@
     gMin: -2.0,
     gMax: 2.0
   });
+  var G_VIEW_MIN_SPAN = 0.25;
+  var gView = {
+    latMin: G_PAD.gMin,
+    latMax: G_PAD.gMax,
+    longMin: G_PAD.gMin,
+    longMax: G_PAD.gMax
+  };
   var gTrail = [];
   var gLastTrailPoint = null;
   var gPadDragging = false;
@@ -89,6 +96,9 @@
   var gRegionSampleImage = null;
   var gRegionsDirty = true;
   var gRegionTimer = null;
+  var gLastNodeStateIndex = null;
+  var gLastStateSide = 0;
+  var gLastStateCount = 0;
 
   function buildPresets(profile) {
     var stock = {
@@ -673,16 +683,81 @@
 
   function gPadX(lateralG) {
     var plotWidth = G_PAD.width - G_PAD.left - G_PAD.right;
-    var fraction = (lateralG - G_PAD.gMin) / (G_PAD.gMax - G_PAD.gMin);
-    return G_PAD.left + fraction * plotWidth;
+    var span = gView.latMax - gView.latMin;
+    return G_PAD.left + ((lateralG - gView.latMin) / span) * plotWidth;
   }
 
   function gPadY(longitudinalG) {
     // Vertical orientation: brake (-longitudinal) points up; acceleration
     // (+longitudinal) points down.
     var plotHeight = G_PAD.bottom - G_PAD.top;
-    var fraction = (longitudinalG - G_PAD.gMin) / (G_PAD.gMax - G_PAD.gMin);
-    return G_PAD.top + fraction * plotHeight;
+    var span = gView.longMax - gView.longMin;
+    return G_PAD.top + ((longitudinalG - gView.longMin) / span) * plotHeight;
+  }
+
+  function gViewSpan() {
+    return gView.latMax - gView.latMin;
+  }
+
+  function gViewTicks(min, max, step) {
+    var values = [];
+    var epsilon = step * 1e-6;
+    var start = Math.ceil((min - epsilon) / step) * step;
+    for (var value = start; value <= max + epsilon; value += step) {
+      var rounded = Math.round(value / step) * step;
+      values.push(Math.abs(rounded) < 1e-9 ? 0 : rounded);
+    }
+    return values;
+  }
+
+  function gAxisTickDecimals(step) {
+    if (step < 0.1) {
+      return 2;
+    }
+    if (step < 1) {
+      return 1;
+    }
+    return 0;
+  }
+
+  function formatGAxisTick(value, step) {
+    if (Math.abs(value) < 1e-9) {
+      return '0';
+    }
+    return Number(value.toFixed(gAxisTickDecimals(step))).toString();
+  }
+
+  function setGView(latMin, latMax, longMin, longMax) {
+    var fullSpan = G_PAD.gMax - G_PAD.gMin;
+    var requestedSpan = latMax - latMin;
+    var span = clamp(requestedSpan, G_VIEW_MIN_SPAN, fullSpan);
+    var nextLatMin = clamp(latMin, G_PAD.gMin, G_PAD.gMax - span);
+    var nextLongMin = clamp(longMin, G_PAD.gMin, G_PAD.gMax - span);
+    var nextLatMax = nextLatMin + span;
+    var nextLongMax = nextLongMin + span;
+
+    if (nextLatMin === gView.latMin &&
+      nextLatMax === gView.latMax &&
+      nextLongMin === gView.longMin &&
+      nextLongMax === gView.longMax) {
+      return;
+    }
+
+    gView.latMin = nextLatMin;
+    gView.latMax = nextLatMax;
+    gView.longMin = nextLongMin;
+    gView.longMax = nextLongMax;
+    updateGView();
+  }
+
+  function zoomGViewAt(lat, long, factor) {
+    var span = gViewSpan();
+    var nextSpan = clamp(span / factor, G_VIEW_MIN_SPAN, G_PAD.gMax - G_PAD.gMin);
+    var latRatio = (lat - gView.latMin) / span;
+    var longRatio = (long - gView.longMin) / span;
+    var latMin = lat - latRatio * nextSpan;
+    var longMin = long - longRatio * nextSpan;
+    setGView(latMin, latMin + nextSpan, longMin, longMin + nextSpan);
   }
 
   function gPadPath(points) {
@@ -753,46 +828,62 @@
       class: 'g-pad-frame'
     }));
 
-    for (var value = G_PAD.gMin; value <= G_PAD.gMax + 1e-6; value += 0.5) {
-      var rounded = Math.round(value);
-      var isWhole = Math.abs(value - rounded) < 1e-6;
-      var px = gPadX(value);
-      var py = gPadY(value);
+    var span = gViewSpan();
+    var gridStep = niceStep(span / 8);
+    var labelStep = niceStep(span / 6);
+    if (labelStep < gridStep) {
+      labelStep = gridStep;
+    }
+    var xTicks = gViewTicks(gView.latMin, gView.latMax, gridStep);
+    var yTicks = gViewTicks(gView.longMin, gView.longMax, gridStep);
+    var xLabelTicks = gViewTicks(gView.latMin, gView.latMax, labelStep);
+    var yLabelTicks = gViewTicks(gView.longMin, gView.longMax, labelStep);
 
+    xTicks.forEach(function (value) {
+      var px = gPadX(value);
       grid.appendChild(createSvgElement('line', {
         x1: px.toFixed(2),
         y1: G_PAD.top,
         x2: px.toFixed(2),
         y2: G_PAD.bottom
       }));
+    });
+
+    yTicks.forEach(function (value) {
+      var py = gPadY(value);
       grid.appendChild(createSvgElement('line', {
         x1: G_PAD.left,
         y1: py.toFixed(2),
         x2: G_PAD.width - G_PAD.right,
         y2: py.toFixed(2)
       }));
+    });
 
-      if (isWhole) {
-        axes.appendChild(createSvgElement('text', {
-          x: px.toFixed(2),
-          y: G_PAD.bottom + 13,
-          'text-anchor': 'middle'
-        }, rounded === 0 ? '0' : String(rounded)));
-        axes.appendChild(createSvgElement('text', {
-          x: G_PAD.left - 5,
-          y: (py + 3).toFixed(2),
-          'text-anchor': 'end'
-        }, rounded === 0 ? '0' : String(rounded)));
-      }
+    xLabelTicks.forEach(function (value) {
+      axes.appendChild(createSvgElement('text', {
+        x: gPadX(value).toFixed(2),
+        y: G_PAD.bottom + 13,
+        'text-anchor': 'middle'
+      }, formatGAxisTick(value, labelStep)));
+    });
+
+    yLabelTicks.forEach(function (value) {
+      axes.appendChild(createSvgElement('text', {
+        x: G_PAD.left - 5,
+        y: (gPadY(value) + 3).toFixed(2),
+        'text-anchor': 'end'
+      }, formatGAxisTick(value, labelStep)));
+    });
+
+    if (gView.latMin <= 0 && gView.latMax >= 0) {
+      axes.appendChild(createSvgElement('line', {
+        x1: gPadX(0).toFixed(2),
+        y1: G_PAD.top,
+        x2: gPadX(0).toFixed(2),
+        y2: G_PAD.bottom,
+        class: 'g-pad-zero-axis'
+      }));
     }
-
-    axes.appendChild(createSvgElement('line', {
-      x1: gPadX(0).toFixed(2),
-      y1: G_PAD.top,
-      x2: gPadX(0).toFixed(2),
-      y2: G_PAD.bottom,
-      class: 'g-pad-zero-axis'
-    }));
     axes.appendChild(createSvgElement('text', {
       x: G_PAD.left,
       y: G_PAD.top - 4,
@@ -1118,6 +1209,36 @@
     }
 
     imageContext.putImageData(gRegionSampleImage, 0, 0);
+    gLastNodeStateIndex = nodeStateIndex;
+    gLastStateSide = side;
+    gLastStateCount = count;
+    drawGRegionView();
+    updateGStateLabels(nodeStateIndex, side, count);
+  }
+
+  function drawGRegionView() {
+    var canvas = $('gPadRegionCanvas');
+    if (!canvas || !gRegionSampleCanvas) {
+      return;
+    }
+    var context = canvas.getContext('2d');
+    if (!context) {
+      return;
+    }
+
+    var plotWidth = G_PAD.width - G_PAD.left - G_PAD.right;
+    var plotHeight = G_PAD.bottom - G_PAD.top;
+    var sampleWidth = gRegionSampleCanvas.width;
+    var sampleHeight = gRegionSampleCanvas.height;
+    var fullSpan = G_PAD.gMax - G_PAD.gMin;
+    var sourceX = ((gView.latMin - G_PAD.gMin) / fullSpan) * sampleWidth;
+    var sourceY = ((gView.longMin - G_PAD.gMin) / fullSpan) * sampleHeight;
+    var sourceWidth = ((gView.latMax - gView.latMin) / fullSpan) * sampleWidth;
+    var sourceHeight = ((gView.longMax - gView.longMin) / fullSpan) * sampleHeight;
+    sourceX = clamp(sourceX, 0, sampleWidth);
+    sourceY = clamp(sourceY, 0, sampleHeight);
+    sourceWidth = clamp(sourceWidth, 1, sampleWidth - sourceX);
+    sourceHeight = clamp(sourceHeight, 1, sampleHeight - sourceY);
 
     var pixelRatio = 2;
     context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
@@ -1126,13 +1247,15 @@
     context.imageSmoothingQuality = 'high';
     context.drawImage(
       gRegionSampleCanvas,
+      sourceX,
+      sourceY,
+      sourceWidth,
+      sourceHeight,
       G_PAD.left,
       G_PAD.top,
-      G_PAD.width - G_PAD.left - G_PAD.right,
-      G_PAD.bottom - G_PAD.top
+      plotWidth,
+      plotHeight
     );
-
-    updateGStateLabels(nodeStateIndex, side, count);
   }
 
   function updateGStateLabels(nodeStateIndex, side, count) {
@@ -1211,11 +1334,17 @@
 
       var labelRow = Math.floor(bestNode / side);
       var labelColumn = bestNode % side;
+      var labelLat = G_PAD.gMin + labelColumn * G_REGION_STEP;
+      var labelLong = G_PAD.gMin + labelRow * G_REGION_STEP;
+      if (labelLat < gView.latMin || labelLat > gView.latMax ||
+        labelLong < gView.longMin || labelLong > gView.longMax) {
+        continue;
+      }
       candidates.push({
         code: G_STATE_ORDER[target - 1],
         size: nodes.length,
-        x: gPadX(G_PAD.gMin + labelColumn * G_REGION_STEP),
-        y: gPadY(G_PAD.gMin + labelRow * G_REGION_STEP)
+        x: gPadX(labelLat),
+        y: gPadY(labelLong)
       });
     }
 
@@ -1331,30 +1460,9 @@
     return true;
   }
 
-  function updateGPad(result) {
-    var pad = $('gPad');
-    if (!pad) {
-      return;
-    }
-
-    var lat = result.state.lateralG;
-    var long = result.state.longitudinalG;
-    var magnitude = result.gVectorMagnitude;
-    var phase = gPadPhase(lat, long);
-    var transferKn = result.longitudinal.transfer / 1000;
-    var hasCorner = Math.abs(lat) >= 0.02;
-    var directionCn = result.turnDirection === 'right'
-      ? '右转'
-      : result.turnDirection === 'left' ? '左转' : '直行';
-    var directionEn = result.turnDirection === 'right'
-      ? 'RIGHT'
-      : result.turnDirection === 'left' ? 'LEFT' : 'STRAIGHT';
-
-    recordGTrail(lat, long);
-
+  function updateGMarkers(lat, long) {
     var px = gPadX(lat);
     var py = gPadY(long);
-
     var cursor = $('gPadCursor');
     var halo = $('gPadCursorHalo');
     if (cursor) {
@@ -1380,6 +1488,46 @@
       projectionY.setAttribute('x2', px.toFixed(2));
       projectionY.setAttribute('y2', py.toFixed(2));
     }
+  }
+
+  function updateGView() {
+    buildGPad();
+    drawGRegionView();
+    if (gLastNodeStateIndex && gLastStateSide) {
+      updateGStateLabels(
+        gLastNodeStateIndex,
+        gLastStateSide,
+        gLastStateCount
+      );
+    }
+    var trail = $('gPadTrail');
+    if (trail) {
+      trail.setAttribute('d', gPadPath(gTrail));
+    }
+    updateGMarkers(state.lateralG, state.longitudinalG);
+  }
+
+  function updateGPad(result) {
+    var pad = $('gPad');
+    if (!pad) {
+      return;
+    }
+
+    var lat = result.state.lateralG;
+    var long = result.state.longitudinalG;
+    var magnitude = result.gVectorMagnitude;
+    var phase = gPadPhase(lat, long);
+    var transferKn = result.longitudinal.transfer / 1000;
+    var hasCorner = Math.abs(lat) >= 0.02;
+    var directionCn = result.turnDirection === 'right'
+      ? '右转'
+      : result.turnDirection === 'left' ? '左转' : '直行';
+    var directionEn = result.turnDirection === 'right'
+      ? 'RIGHT'
+      : result.turnDirection === 'left' ? 'LEFT' : 'STRAIGHT';
+
+    recordGTrail(lat, long);
+    updateGMarkers(lat, long);
 
     setText('ayValue', formatSigned(lat, 2));
     setText('longGValue', formatSigned(long, 2));
@@ -1538,30 +1686,61 @@
       return;
     }
     var svg = $('gPadSvg');
+    var viewPanning = false;
+    var viewPanPointerId = null;
+    var viewPanStart = null;
 
-    function applyPointer(event) {
+    function pointerToG(event) {
       var rect = svg.getBoundingClientRect();
       if (!(rect.width > 0) || !(rect.height > 0)) {
-        return;
+        return null;
       }
       var px = (event.clientX - rect.left) * (G_PAD.width / rect.width);
       var py = (event.clientY - rect.top) * (G_PAD.height / rect.height);
       px = clamp(px, G_PAD.left, G_PAD.width - G_PAD.right);
       py = clamp(py, G_PAD.top, G_PAD.bottom);
+      return {
+        px: px,
+        py: py,
+        lat: gView.latMin +
+          ((px - G_PAD.left) / (G_PAD.width - G_PAD.left - G_PAD.right)) *
+          gViewSpan(),
+        long: gView.longMin +
+          ((py - G_PAD.top) / (G_PAD.bottom - G_PAD.top)) *
+          gViewSpan()
+      };
+    }
 
-      var lat = G_PAD.gMin +
-        ((px - G_PAD.left) / (G_PAD.width - G_PAD.left - G_PAD.right)) *
-        (G_PAD.gMax - G_PAD.gMin);
-      var long = G_PAD.gMin +
-        ((py - G_PAD.top) / (G_PAD.bottom - G_PAD.top)) *
-        (G_PAD.gMax - G_PAD.gMin);
-
-      setGInput(Math.round(lat * 100) / 100, Math.round(long * 100) / 100);
+    function applyPointer(event) {
+      var point = pointerToG(event);
+      if (!point) {
+        return;
+      }
+      setGInput(
+        Math.round(point.lat * 100) / 100,
+        Math.round(point.long * 100) / 100
+      );
     }
 
     pad.addEventListener('pointerdown', function (event) {
       event.preventDefault();
       stopGPlayback(false);
+
+      if (event.button === 1 || event.button === 2 || event.shiftKey) {
+        viewPanning = true;
+        viewPanPointerId = event.pointerId;
+        viewPanStart = {
+          x: event.clientX,
+          y: event.clientY,
+          latMin: gView.latMin,
+          longMin: gView.longMin
+        };
+        if (pad.setPointerCapture) {
+          pad.setPointerCapture(event.pointerId);
+        }
+        return;
+      }
+
       gPadDragging = true;
       gPadPointerId = event.pointerId;
       if (pad.setPointerCapture) {
@@ -1576,6 +1755,28 @@
     });
 
     pad.addEventListener('pointermove', function (event) {
+      if (viewPanning && event.pointerId === viewPanPointerId) {
+        event.preventDefault();
+        var rect = svg.getBoundingClientRect();
+        if (!(rect.width > 0) || !(rect.height > 0)) {
+          return;
+        }
+        var dx = (event.clientX - viewPanStart.x) * (G_PAD.width / rect.width);
+        var dy = (event.clientY - viewPanStart.y) * (G_PAD.height / rect.height);
+        var plotWidth = G_PAD.width - G_PAD.left - G_PAD.right;
+        var plotHeight = G_PAD.bottom - G_PAD.top;
+        var span = gViewSpan();
+        var latShift = -(dx / plotWidth) * span;
+        var longShift = -(dy / plotHeight) * span;
+        setGView(
+          viewPanStart.latMin + latShift,
+          viewPanStart.latMin + latShift + span,
+          viewPanStart.longMin + longShift,
+          viewPanStart.longMin + longShift + span
+        );
+        return;
+      }
+
       if (!gPadDragging || event.pointerId !== gPadPointerId) {
         return;
       }
@@ -1584,6 +1785,15 @@
     });
 
     function releasePointer(event) {
+      if (viewPanning && event.pointerId === viewPanPointerId) {
+        viewPanning = false;
+        viewPanPointerId = null;
+        viewPanStart = null;
+        if (pad.hasPointerCapture && pad.hasPointerCapture(event.pointerId)) {
+          pad.releasePointerCapture(event.pointerId);
+        }
+        return;
+      }
       if (event.pointerId !== gPadPointerId) {
         return;
       }
@@ -1596,6 +1806,36 @@
 
     pad.addEventListener('pointerup', releasePointer);
     pad.addEventListener('pointercancel', releasePointer);
+    pad.addEventListener('contextmenu', function (event) {
+      event.preventDefault();
+    });
+
+    pad.addEventListener('wheel', function (event) {
+      var point = pointerToG(event);
+      if (!point) {
+        return;
+      }
+      event.preventDefault();
+      stopGPlayback(false);
+      var factor = clamp(Math.exp(-event.deltaY * 0.0015), 0.72, 1.38);
+      zoomGViewAt(point.lat, point.long, factor);
+    }, { passive: false });
+
+    var resetViewButton = $('gResetViewButton');
+    if (resetViewButton) {
+      resetViewButton.addEventListener('click', function () {
+        setGView(
+          G_PAD.gMin,
+          G_PAD.gMax,
+          G_PAD.gMin,
+          G_PAD.gMax
+        );
+      });
+    }
+
+    pad.addEventListener('dblclick', function () {
+      setGView(G_PAD.gMin, G_PAD.gMax, G_PAD.gMin, G_PAD.gMax);
+    });
 
     pad.addEventListener('keydown', function (event) {
       var step = event.shiftKey ? 0.05 : 0.01;
