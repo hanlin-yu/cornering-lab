@@ -41,8 +41,6 @@
   var G_DELTA_SCALE_PP = 25;
   var G_STATE_ORDER = [
     'loss-of-control',
-    'mid-corner-understeer',
-    'mid-corner-oversteer',
     'power-over',
     'power-under',
     'front-lock',
@@ -53,8 +51,6 @@
     G_STATE_INDEX[code] = index + 1;
   });
   var G_STATE_COLORS = {
-    'mid-corner-understeer': [103, 224, 163],
-    'mid-corner-oversteer': [255, 169, 77],
     'power-over': [255, 122, 47],
     'power-under': [53, 213, 223],
     'front-lock': [255, 209, 102],
@@ -62,8 +58,6 @@
     'loss-of-control': [183, 140, 255]
   };
   var G_STATE_DESCRIPTIONS = {
-    'mid-corner-understeer': '纵向 G 接近 0；侧向主导时前轴先达到 100% 联合利用率',
-    'mid-corner-oversteer': '纵向 G 接近 0；侧向主导时后轴先达到 100% 联合利用率',
     'power-over': '加速时后轴先达到 100% 联合利用率',
     'power-under': '加速时前轴先达到 100% 联合利用率',
     'front-lock': '减速时前轴先达到 100% 联合利用率',
@@ -1000,19 +994,14 @@
         var rr1 = r01 + (r11 - r01) * tx;
         var rearUtilValue = rr0 + (rr1 - rr0) * ty;
 
-        // Classify and fade from the same interpolated utilisation field.
-        // The old binary node-limit mask could disagree with this threshold
-        // and leave transparent, sawtoothed holes near the friction circle.
-        var maxUtilValue = Math.max(frontUtilValue, rearUtilValue);
-        var maskX = clamp((maxUtilValue - 0.98) / 0.04, 0, 1);
-        var heatAlpha = 1 - (maskX * maskX * (3 - 2 * maskX));
-
         var vehicleState = model.classifyVehicleState(
           frontUtilValue,
           rearUtilValue,
           longValue
         );
-        var stateColor = vehicleState ? G_STATE_COLORS[vehicleState.code] : null;
+        var lossColor = vehicleState && vehicleState.code === 'loss-of-control'
+          ? G_STATE_COLORS['loss-of-control']
+          : null;
 
         var t = Math.tanh(value / G_DELTA_SCALE_PP);
         var lutIndex = clamp(Math.round((t + 1) * 127.5), 0, 255);
@@ -1025,18 +1014,18 @@
           ? (G_STATE_INDEX[vehicleState.code] || 0)
           : 0;
 
-        if (stateColor) {
-          // Keep the state as a faint categorical wash; the bright contour and
-          // label carry the state while the field stays readable.
-          pixels[dataIndex] = Math.round(baseR * 0.05 + stateColor[0] * 0.95);
-          pixels[dataIndex + 1] = Math.round(baseG * 0.05 + stateColor[1] * 0.95);
-          pixels[dataIndex + 2] = Math.round(baseB * 0.05 + stateColor[2] * 0.95);
+        if (lossColor) {
+          // Loss of control is the only region that keeps a categorical fill;
+          // all other regions keep the same ΔU colormap as the in-grip area.
+          pixels[dataIndex] = Math.round(baseR * 0.05 + lossColor[0] * 0.95);
+          pixels[dataIndex + 1] = Math.round(baseG * 0.05 + lossColor[1] * 0.95);
+          pixels[dataIndex + 2] = Math.round(baseB * 0.05 + lossColor[2] * 0.95);
           pixels[dataIndex + 3] = 52;
         } else {
           pixels[dataIndex] = baseR;
           pixels[dataIndex + 1] = baseG;
           pixels[dataIndex + 2] = baseB;
-          pixels[dataIndex + 3] = Math.round(255 * heatAlpha);
+          pixels[dataIndex + 3] = 255;
         }
         dataIndex += 4;
       }
@@ -1382,6 +1371,12 @@
       label = result.vehicleState.label;
       labelEn = result.vehicleState.labelEn;
       description = G_STATE_DESCRIPTIONS[code] || '';
+    } else if (result.axleLimitReached || result.limitExceeded) {
+      // Exactly 0 g has no directional phase; keep the axle-limit fact visible.
+      code = 'axle-limit';
+      label = '轴超限';
+      labelEn = 'AXLE LIMIT';
+      description = '某轴已达到抓地极限；用 ΔU 色图判断推头 / 甩尾倾向。';
     } else {
       code = 'grip';
       label = '抓地内';

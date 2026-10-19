@@ -1628,9 +1628,6 @@
   var NEUTRAL_BAND_PP = 0.35;
   var REFERENCE_SPEED_KMH = 100;
 
-  // A sustained longitudinal demand is required before an axle-limit condition
-  // is labelled as a power / braking state rather than a generic axle limit.
-  var VEHICLE_STATE_LONG_THRESHOLD_G = 0.10;
   var VEHICLE_STATES = Object.freeze({
     powerOver: Object.freeze({
       code: 'power-over',
@@ -1645,20 +1642,6 @@
       labelEn: 'POWER UNDER',
       direction: 'accel',
       axle: 'front'
-    }),
-    midCornerUndersteer: Object.freeze({
-      code: 'mid-corner-understeer',
-      label: '弯中推头',
-      labelEn: 'MID-CORNER UNDERSTEER',
-      direction: 'mid',
-      axle: 'front'
-    }),
-    midCornerOversteer: Object.freeze({
-      code: 'mid-corner-oversteer',
-      label: '弯中甩尾',
-      labelEn: 'MID-CORNER OVERSTEER',
-      direction: 'mid',
-      axle: 'rear'
     }),
     frontLock: Object.freeze({
       code: 'front-lock',
@@ -1692,15 +1675,15 @@
     if (frontOver && rearOver) {
       return VEHICLE_STATES.lossOfControl;
     }
-    if (longitudinalG > VEHICLE_STATE_LONG_THRESHOLD_G) {
+    // The sign of longitudinal G selects the acceleration or braking phase.
+    // Exactly 0 g has no directional state.
+    if (longitudinalG > 0) {
       return rearOver ? VEHICLE_STATES.powerOver : VEHICLE_STATES.powerUnder;
     }
-    if (longitudinalG < -VEHICLE_STATE_LONG_THRESHOLD_G) {
+    if (longitudinalG < 0) {
       return frontOver ? VEHICLE_STATES.frontLock : VEHICLE_STATES.rearLock;
     }
-    return frontOver
-      ? VEHICLE_STATES.midCornerUndersteer
-      : VEHICLE_STATES.midCornerOversteer;
+    return null;
   }
 
   function clamp(value, min, max) {
@@ -2173,7 +2156,6 @@
     DRIVE_MODES: DRIVE_MODES,
     NEUTRAL_BAND_PP: NEUTRAL_BAND_PP,
     VEHICLE_STATES: VEHICLE_STATES,
-    VEHICLE_STATE_LONG_THRESHOLD_G: VEHICLE_STATE_LONG_THRESHOLD_G,
     classifyVehicleState: classifyVehicleState,
     getCarProfile: getCarProfile,
     createBaseState: createBaseState,

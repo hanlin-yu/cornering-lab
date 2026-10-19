@@ -472,26 +472,31 @@ test('unpacked AC suspension hardpoints drive each car 3D architecture', () => {
   });
 });
 
-test('longitudinal demand plus the saturated axle classifies the seven limit states', () => {
+test('longitudinal sign classifies the five directional and loss states', () => {
   const classify = model.classifyVehicleState;
 
+  assert.equal(Object.keys(model.VEHICLE_STATES).length, 5);
   assert.equal(classify(0.90, 0.90, 0.50), null);
 
   assert.equal(classify(1.10, 0.80, 0.50).code, 'power-under');
   assert.equal(classify(0.80, 1.10, 0.50).code, 'power-over');
   assert.equal(classify(1.10, 0.80, -0.50).code, 'front-lock');
   assert.equal(classify(0.80, 1.10, -0.50).code, 'rear-lock');
-  assert.equal(classify(1.10, 0.80, 0.00).code, 'mid-corner-understeer');
-  assert.equal(classify(0.80, 1.10, 0.00).code, 'mid-corner-oversteer');
+  // Any non-zero longitudinal sign selects a phase.
+  assert.equal(classify(1.10, 0.80, 0.01).code, 'power-under');
+  assert.equal(classify(0.80, 1.10, 0.01).code, 'power-over');
+  assert.equal(classify(1.10, 0.80, -0.01).code, 'front-lock');
+  assert.equal(classify(0.80, 1.10, -0.01).code, 'rear-lock');
+  assert.equal(classify(1.10, 0.80, 0), null);
+  assert.equal(classify(0.80, 1.10, 0), null);
   assert.equal(classify(1.10, 1.10, 0.50).code, 'loss-of-control');
   assert.equal(classify(1.10, 1.10, -0.50).code, 'loss-of-control');
   assert.equal(classify(1.10, 1.10, 0).code, 'loss-of-control');
 
-  assert.equal(classify(1.10, 0.80, 0.50).labelEn, 'POWER UNDER');
-  assert.equal(classify(1.10, 0.80, 0.00).label, '弯中推头');
-  assert.equal(classify(0.80, 1.10, 0.00).labelEn, 'MID-CORNER OVERSTEER');
+  assert.equal(classify(1.10, 0.80, 0.01).labelEn, 'POWER UNDER');
+  assert.equal(classify(1.10, 0.80, 0.01).label, '动力推头');
+  assert.equal(classify(0.80, 1.10, -0.01).labelEn, 'REAR LOCK');
   assert.equal(classify(0.80, 1.10, -0.50).label, '后轮抱死');
-  assert.equal(model.VEHICLE_STATE_LONG_THRESHOLD_G, 0.10);
 
   const straightGrip = model.calculate(model.cloneBaseState());
   assert.equal(straightGrip.vehicleState, null);

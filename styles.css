@@ -774,8 +774,7 @@ input:focus-visible {
 }
 
 .g-vehicle-state[data-state="grip"] { --state-color: #7d949c; }
-.g-vehicle-state[data-state="mid-corner-understeer"] { --state-color: #67e0a3; }
-.g-vehicle-state[data-state="mid-corner-oversteer"] { --state-color: #ffa94d; }
+.g-vehicle-state[data-state="axle-limit"] { --state-color: #d8b978; }
 .g-vehicle-state[data-state="power-over"] { --state-color: #ff7a2f; }
 .g-vehicle-state[data-state="power-under"] { --state-color: #35d5df; }
 .g-vehicle-state[data-state="front-lock"] { --state-color: #ffd166; }
@@ -858,8 +857,6 @@ input:focus-visible {
   white-space: nowrap;
 }
 
-.g-state-key span[data-state="mid-corner-understeer"] { --state-color: #67e0a3; }
-.g-state-key span[data-state="mid-corner-oversteer"] { --state-color: #ffa94d; }
 .g-state-key span[data-state="power-over"] { --state-color: #ff7a2f; }
 .g-state-key span[data-state="power-under"] { --state-color: #35d5df; }
 .g-state-key span[data-state="front-lock"] { --state-color: #ffd166; }

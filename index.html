@@ -562,9 +562,7 @@
           </div>
 
           <div class="g-state-key" aria-label="轴超限状态颜色图例">
-            <span class="g-state-key-title">轴超限 / AXLE LIMIT</span>
-            <span data-state="mid-corner-understeer"><i aria-hidden="true"></i>弯中推头</span>
-            <span data-state="mid-corner-oversteer"><i aria-hidden="true"></i>弯中甩尾</span>
+            <span class="g-state-key-title">轴超限状态 / LIMIT STATES</span>
             <span data-state="power-over"><i aria-hidden="true"></i>动力甩尾</span>
             <span data-state="power-under"><i aria-hidden="true"></i>动力推头</span>
             <span data-state="front-lock"><i aria-hidden="true"></i>前轮抱死</span>
@@ -573,7 +571,7 @@
           </div>
 
           <p class="g-pad-note">
-            拖动设置 G；回放从入弯制动到出弯加速。底色 = ΔU 连续热力图（0.05 g 采样、双线性插值；黑 = 中性，±25 pp 饱和）。轴超限区域以状态色描边和标签标出：纵向 &gt; +0.10 g 为动力状态，&lt; −0.10 g 为制动状态，纵向接近 0 时按超限轴显示弯中推头 / 弯中甩尾；两轴同时超限为失控。状态是轴饱和分类，不是滑移动力学。
+            拖动设置 G。底色 = ΔU 连续热力图（0.05 g 插值；黑 = 中性，±25 pp 饱和），非失控区域用同一色图表示推头 / 甩尾。加速超限为动力状态，减速超限为抱死状态，两轴同时超限为失控。彩色边界和标签对应各状态；这是轴饱和分类，不是滑移动力学。
             <span id="gLongTransferNote">纵向转移 后轴 +0.00 kN</span>
             <span id="gDistributionNote">制动 72 / 28 · RWD</span>
           </p>
