@@ -530,7 +530,7 @@
         (profile.arbFrontNm / 1000).toFixed(1) + ' / ' +
         (profile.arbRearNm / 1000).toFixed(1) + ' N/mm',
         '[ARB] ' + profile.arbFrontNm + ' / ' + profile.arbRearNm + ' N/m · 轮端等效'],
-      ['制动前轴占比', biasPct + ' / ' + (100 - biasPct) + '%',
+      ['刹车平衡', biasPct + ' / ' + (100 - biasPct) + '%',
         profile.brakeSource + ' · COCKPIT_ADJUSTABLE = ' +
         (profile.cockpitBrakeAdjustable ? '1' : '0')],
       ['驱动形式', profile.driveType, profile.driveSource],
