@@ -525,9 +525,11 @@
               </defs>
               <g id="gPadGrid" class="g-pad-grid"></g>
               <g id="gPadAxes" class="g-pad-axes"></g>
+              <g id="gPadAuxLines" class="g-pad-aux-lines" aria-hidden="true"></g>
               <path id="gPadCornerGuide" class="g-pad-guide" fill="none"></path>
               <path id="gPadTrail" class="g-pad-trail" fill="none"></path>
               <g id="gPadStateLabels" class="g-pad-state-labels" aria-hidden="true"></g>
+              <g id="gPadAuxLabels" class="g-pad-aux-labels" aria-hidden="true"></g>
               <line id="gPadProjectionX" class="g-pad-projection" aria-hidden="true"></line>
               <line id="gPadProjectionY" class="g-pad-projection" aria-hidden="true"></line>
               <circle id="gPadCursorHalo" class="g-pad-cursor-halo" r="10" aria-hidden="true"></circle>
@@ -575,7 +577,7 @@
           </div>
 
           <p class="g-pad-note">
-            拖动设置 G。底色 = ΔU 连续热力图（0.05 g 插值；黑 = 中性，±25 pp 饱和），非失控区域用同一色图表示推头 / 甩尾。轴超限时按 |lat| / |long| 主导方向分类：侧向主导区分入弯 / 出弯，纵向主导区分动力 / 抱死；两轴同时超限为失控（红色半透明条纹）。彩色边界和标签对应各状态。
+            拖动设置 G。底色 = ΔU 连续热力图（0.05 g 插值；黑 = 中性，±25 pp 饱和），非失控区域用同一色图表示推头 / 甩尾。轴超限时按 |lat| / |long| 主导方向分类：侧向主导区分入弯 / 出弯，纵向主导区分动力 / 抱死；两轴同时超限为失控（红黑交错斜纹，70% 不透明度）。彩色边界和标签对应各状态。
             <span id="gLongTransferNote">纵向转移 后轴 +0.00 kN</span>
             <span id="gDistributionNote">制动 72 / 28 · RWD</span>
           </p>

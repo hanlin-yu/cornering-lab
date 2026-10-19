@@ -671,6 +671,39 @@ input:focus-visible {
   opacity: 0.55;
 }
 
+.g-pad-aux-line {
+  stroke: rgba(228, 245, 250, 0.56);
+  stroke-width: 1.15;
+  stroke-dasharray: 4 5;
+}
+
+.g-pad-aux-label {
+  fill: #b9cdd2;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  paint-order: stroke;
+  stroke: rgba(4, 10, 13, 0.9);
+  stroke-width: 3.5px;
+  stroke-linejoin: round;
+}
+
+.g-pad-aux-label--entry {
+  fill: #9edbd1;
+}
+
+.g-pad-aux-label--exit {
+  fill: #e6c69a;
+}
+
+.g-pad-aux-label--brake {
+  fill: #b8d9e2;
+}
+
+.g-pad-aux-label--accel {
+  fill: #e6b477;
+}
+
 .g-pad-trail {
   stroke: rgba(89, 217, 211, 0.9);
   stroke-width: 2;
@@ -783,7 +816,7 @@ input:focus-visible {
 .g-vehicle-state[data-state="corner-entry-oversteer"] { --state-color: #ffbf5e; }
 .g-vehicle-state[data-state="power-over"] { --state-color: #ff7a2f; }
 .g-vehicle-state[data-state="rear-lock"] { --state-color: #ff4f7b; }
-.g-vehicle-state[data-state="loss-of-control"] { --state-color: #ff3b45; }
+.g-vehicle-state[data-state="loss-of-control"] { --state-color: #c82632; }
 
 .g-vehicle-state-dot {
   flex: 0 0 auto;
@@ -869,7 +902,7 @@ input:focus-visible {
 .g-state-key span[data-state="corner-entry-oversteer"] { --state-color: #ffbf5e; }
 .g-state-key span[data-state="power-over"] { --state-color: #ff7a2f; }
 .g-state-key span[data-state="rear-lock"] { --state-color: #ff4f7b; }
-.g-state-key span[data-state="loss-of-control"] { --state-color: #ff3b45; }
+.g-state-key span[data-state="loss-of-control"] { --state-color: #c82632; }
 
 .g-state-key span[data-state] i {
   width: 7px;
@@ -883,8 +916,8 @@ input:focus-visible {
   border: 1px solid #ff8b91;
   background: repeating-linear-gradient(
     45deg,
-    rgba(255, 59, 69, 0.5) 0 2px,
-    transparent 2px 4px
+    rgba(200, 38, 50, 0.7) 0 2px,
+    rgba(0, 0, 0, 0.7) 2px 4px
   );
   box-shadow: none;
 }

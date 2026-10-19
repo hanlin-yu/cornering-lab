@@ -63,7 +63,7 @@
     'corner-entry-oversteer': [255, 191, 94],
     'power-over': [255, 122, 47],
     'rear-lock': [255, 79, 123],
-    'loss-of-control': [255, 59, 69]
+    'loss-of-control': [200, 38, 50]
   };
   var G_STATE_DESCRIPTIONS = {
     'corner-exit-understeer': '侧向主导、加速；前轴先达到 100% 联合利用率',
@@ -731,12 +731,20 @@
     var grid = $('gPadGrid');
     var axes = $('gPadAxes');
     var guide = $('gPadCornerGuide');
+    var auxLines = $('gPadAuxLines');
+    var auxLabels = $('gPadAuxLabels');
     if (!grid || !axes || !guide) {
       return;
     }
 
     clearSvgGroup(grid);
     clearSvgGroup(axes);
+    if (auxLines) {
+      clearSvgGroup(auxLines);
+    }
+    if (auxLabels) {
+      clearSvgGroup(auxLabels);
+    }
 
     var plotWidth = G_PAD.width - G_PAD.left - G_PAD.right;
     var plotHeight = G_PAD.bottom - G_PAD.top;
@@ -789,14 +797,6 @@
       y2: G_PAD.bottom,
       class: 'g-pad-zero-axis'
     }));
-    axes.appendChild(createSvgElement('line', {
-      x1: G_PAD.left,
-      y1: gPadY(0).toFixed(2),
-      x2: G_PAD.width - G_PAD.right,
-      y2: gPadY(0).toFixed(2),
-      class: 'g-pad-zero-axis'
-    }));
-
     axes.appendChild(createSvgElement('text', {
       x: G_PAD.left,
       y: G_PAD.top - 4,
@@ -821,6 +821,38 @@
       'text-anchor': 'end',
       class: 'g-pad-axis-title'
     }, 'RIGHT →'));
+
+    if (auxLines) {
+      [
+        { lat1: G_PAD.gMin, long1: G_PAD.gMin, lat2: G_PAD.gMax, long2: G_PAD.gMax },
+        { lat1: G_PAD.gMin, long1: G_PAD.gMax, lat2: G_PAD.gMax, long2: G_PAD.gMin },
+        { lat1: G_PAD.gMin, long1: 0, lat2: G_PAD.gMax, long2: 0 }
+      ].forEach(function (line) {
+        auxLines.appendChild(createSvgElement('line', {
+          x1: gPadX(line.lat1).toFixed(2),
+          y1: gPadY(line.long1).toFixed(2),
+          x2: gPadX(line.lat2).toFixed(2),
+          y2: gPadY(line.long2).toFixed(2),
+          class: 'g-pad-aux-line'
+        }));
+      });
+    }
+
+    if (auxLabels) {
+      [
+        { text: '刹车', lat: 0, long: -1.68, className: 'g-pad-aux-label--brake' },
+        { text: '入弯', lat: -1.25, long: -0.55, className: 'g-pad-aux-label--entry' },
+        { text: '出弯', lat: 1.25, long: 0.55, className: 'g-pad-aux-label--exit' },
+        { text: '加速', lat: 0, long: 1.68, className: 'g-pad-aux-label--accel' }
+      ].forEach(function (label) {
+        auxLabels.appendChild(createSvgElement('text', {
+          x: gPadX(label.lat).toFixed(2),
+          y: gPadY(label.long).toFixed(2),
+          'text-anchor': 'middle',
+          class: 'g-pad-aux-label ' + label.className
+        }, label.text));
+      });
+    }
 
     var guidePoints = [];
     for (var i = 0; i <= 100; i += 1) {
@@ -1028,18 +1060,22 @@
           : 0;
 
         if (lossColor) {
-          // Loss of control is the only categorical region: 50%-alpha red
-          // hazard stripes over the ΔU field.
+          // Loss of control: red/black diagonal stripes at 70% opacity over the
+          // ΔU field. This dims the impossible over/under heatmap underneath.
           var stripe = ((px + py) % 16) < 8;
-          if (stripe) {
-            pixels[dataIndex] = Math.round(baseR * 0.5 + lossColor[0] * 0.5);
-            pixels[dataIndex + 1] = Math.round(baseG * 0.5 + lossColor[1] * 0.5);
-            pixels[dataIndex + 2] = Math.round(baseB * 0.5 + lossColor[2] * 0.5);
-          } else {
-            pixels[dataIndex] = baseR;
-            pixels[dataIndex + 1] = baseG;
-            pixels[dataIndex + 2] = baseB;
-          }
+          var stripeR = stripe ? lossColor[0] : 0;
+          var stripeG = stripe ? lossColor[1] : 0;
+          var stripeB = stripe ? lossColor[2] : 0;
+          var lossAlpha = 0.70;
+          pixels[dataIndex] = Math.round(
+            baseR * (1 - lossAlpha) + stripeR * lossAlpha
+          );
+          pixels[dataIndex + 1] = Math.round(
+            baseG * (1 - lossAlpha) + stripeG * lossAlpha
+          );
+          pixels[dataIndex + 2] = Math.round(
+            baseB * (1 - lossAlpha) + stripeB * lossAlpha
+          );
           pixels[dataIndex + 3] = 255;
         } else {
           pixels[dataIndex] = baseR;
