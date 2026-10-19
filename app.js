@@ -35,7 +35,7 @@
   var gPlayStart = 0;
   var gPlayLastRender = 0;
   var G_PLAY_DURATION_MS = 6200;
-  var G_REGION_STEP = 0.1;
+  var G_REGION_STEP = 0.05;
   var G_REGION_INTERVAL_MS = 1000;
   var G_DELTA_SCALE_PP = 25;
   var G_STATE_ORDER = [

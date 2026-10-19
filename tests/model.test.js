@@ -393,6 +393,26 @@ test('front and rear AC tyre tables are evaluated independently', () => {
   assert.notEqual(front.mu, rear.mu);
 });
 
+test('all unpacked tyre compounds expose front and rear spring rates', () => {
+  let compoundCount = 0;
+  model.CAR_ORDER.forEach((carId) => {
+    const profile = model.getCarProfile(carId);
+    Object.keys(profile.tyreCompounds).forEach((compoundId) => {
+      const compound = profile.tyreCompounds[compoundId];
+      compoundCount += 1;
+      ['front', 'rear'].forEach((axle) => {
+        const spec = compound[axle] || compound;
+        assert.equal(
+          Number.isFinite(spec.verticalRateNm) && spec.verticalRateNm > 0,
+          true,
+          `${carId}/${compoundId}/${axle} tyre spring rate`
+        );
+      });
+    });
+  });
+  assert.equal(compoundCount, 41);
+});
+
 test('unpacked AC suspension hardpoints drive each car 3D architecture', () => {
   const gt86 = model.getCarProfile('gt86');
   assert.equal(gt86.frontSuspension.type, 'STRUT');
