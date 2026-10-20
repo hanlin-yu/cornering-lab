@@ -553,7 +553,7 @@
             id="gPad"
             tabindex="0"
             role="application"
-            aria-label="二维 G-G 输入：横轴为侧向 G，纵轴为纵向 G，向上为制动、向下为加速。轻点或拖动设置 G，或用方向键调节；中键、右键或 Shift + 拖动平移；滚轮或双指捏合缩放，双指拖动平移；双击复位。"
+            aria-label="轻点/左键设置 G；中键/右键/双指拖动。"
           >
             <canvas id="gPadRegionCanvas" class="g-pad-region-canvas" aria-hidden="true"></canvas>
             <svg id="gPadSvg" viewBox="0 0 320 320" aria-hidden="true">
@@ -592,7 +592,7 @@
               <span id="gPlayLabel">扫弯回放</span>
             </button>
             <button class="g-clear-button" id="gClearTrailButton" type="button">清轨迹</button>
-            <button class="g-clear-button" id="gResetViewButton" type="button" title="滚轮缩放；右键 / 中键拖动平移；双击复位" aria-label="复位 G-G 视图">复位视图</button>
+            <button class="g-clear-button" id="gResetViewButton" type="button" title="轻点/左键设置 G；中键/右键/双指拖动；双击复位" aria-label="复位 G-G 视图">复位视图</button>
           </div>
 
           <div class="g-vehicle-state" id="gVehicleState" data-state="grip" aria-live="polite">
@@ -627,7 +627,7 @@
           </div>
 
           <p class="g-pad-note">
-            轻点或拖动设置 G；滚轮 / 双指捏合缩放，双指拖动平移。热力图ΔU 表示未到极限时相对推头 / 甩尾。超极限区域用彩色边界表示。
+            热力图ΔU 表示未到极限时相对推头 / 甩尾。超极限区域用彩色边界表示。轻点/左键设置 G；中键/右键/双指拖动。
             <span id="gLongTransferNote">纵向转移 后轴 +0.00 kN</span>
             <span id="gDistributionNote">制动 72 / 28 · RWD</span>
           </p>
