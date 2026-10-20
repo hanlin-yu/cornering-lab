@@ -2519,7 +2519,7 @@
       ' / R ' + result.springRates.groundRearNmm.toFixed(1) + ' N/mm');
   }
 
-  var TYRE_CHART_DURATION_MS = 340;
+  var TYRE_CHART_DURATION_MS = 1020;
   var tyreChartAnimation = {
     mu: {
       current: null,
