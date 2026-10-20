@@ -41,9 +41,9 @@
           <h3><span>NOT INCLUDED</span>模型不包含</h3>
           <ul>
             <li>轮胎滑移率、滑移角</li>
-            <li>轮胎温度</li>
-            <li>Contact patch 形状与压力分布</li>
+            <li>Contact patch 形状、温度、胎压</li>
             <li>悬架几何运动（roll center、camber、toe）</li>
+            <li>差速器模拟</li>
           </ul>
         </section>
       </div>
@@ -136,7 +136,7 @@
         </div>
 
         <p class="distribution-note" id="distributionSourceNote">
-          AC 原车：brakes.ini <b>FRONT_SHARE = 0.72</b>，drivetrain.ini <b>TYPE = RWD</b>，COCKPIT_ADJUSTABLE = 0；上方为分析用自定义。制动占比影响制动阶段，驱动形式影响加速阶段。
+          AC 原车：brakes.ini <b>FRONT_SHARE = 0.72</b>，drivetrain.ini <b>TYPE = RWD</b>，COCKPIT_ADJUSTABLE = 0；上方为分析用自定义。制动占比影响制动阶段，驱动形式影响加速阶段，无差速器模拟。
         </p>
       </section>
 
@@ -187,7 +187,7 @@
           <small>k = 1 − LS_EXPY; Fy,max = μ(Fz) · Fz。</small>
         </p>
         <p class="tyre-scope">
-          前后轴分别读取 FRONT / REAR 的 FZ0、LS_EXPY、宽度、半径和轮胎弹簧率；自定义 μ_ref / k 同时作用于前后轴，轮胎弹簧率可分别设置。忽略轮胎滑移角 / 滑移率对 μ 的影响。
+          前后轴分别读取 FRONT / REAR 的 FZ0、LS_EXPY、宽度、半径和轮胎弹簧率；自定义 μ_ref / k 同时作用于前后轴，轮胎弹簧率可分别设置。
         </p>
       </section>
 
@@ -830,11 +830,9 @@ U = F_res,axle / Fgrip,axle</code></pre>
   </main>
 
   <footer class="site-footer">
-    <span>Cornering Lab · Assetto Corsa multi-car</span>
+    <span>Cornering Lab</span>
     <span class="footer-sep" aria-hidden="true"></span>
-    <span>STEADY-STATE MODEL · NOT A LAP-TIME SIM</span>
-    <span class="footer-sep" aria-hidden="true"></span>
-    <span>3D: Three.js r149 · MIT</span>
+    <span>STEADY-STATE MODEL</span>
   </footer>
 
   <script src="vendor/three.min.js"></script>
