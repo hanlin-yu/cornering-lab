@@ -2519,7 +2519,147 @@
       ' / R ' + result.springRates.groundRearNmm.toFixed(1) + ' N/mm');
   }
 
-  function renderTyreCurve(result) {
+  var TYRE_CHART_DURATION_MS = 340;
+  var tyreChartAnimation = {
+    mu: {
+      current: null,
+      target: null,
+      from: null,
+      startedAt: 0,
+      active: false
+    },
+    force: {
+      current: null,
+      target: null,
+      from: null,
+      startedAt: 0,
+      active: false
+    },
+    frame: null,
+    lastResult: null
+  };
+
+  function cloneTyreDomain(domain) {
+    var copy = {};
+    Object.keys(domain).forEach(function (key) {
+      copy[key] = domain[key];
+    });
+    return copy;
+  }
+
+  function tyreDomainsEqual(a, b) {
+    if (!a || !b) {
+      return false;
+    }
+    var keys = Object.keys(b);
+    if (Object.keys(a).length !== keys.length) {
+      return false;
+    }
+    return keys.every(function (key) {
+      return Math.abs(a[key] - b[key]) <=
+        Math.max(1e-5, Math.abs(b[key]) * 1e-4);
+    });
+  }
+
+  function tyreAnimationTime() {
+    return window.performance &&
+      typeof window.performance.now === 'function'
+      ? window.performance.now()
+      : Date.now();
+  }
+
+  function startTyreChartAnimation() {
+    if (tyreChartAnimation.frame) {
+      return;
+    }
+    tyreChartAnimation.frame =
+      window.requestAnimationFrame(stepTyreChartAnimation);
+  }
+
+  function stepTyreChartAnimation(now) {
+    var anim = tyreChartAnimation;
+    var moving = false;
+
+    ['mu', 'force'].forEach(function (key) {
+      var chart = anim[key];
+      if (!chart.active || !chart.current ||
+        !chart.target || !chart.from) {
+        return;
+      }
+      var progress = clamp(
+        (now - chart.startedAt) / TYRE_CHART_DURATION_MS,
+        0,
+        1
+      );
+      var eased = 1 - Math.pow(1 - progress, 3);
+      Object.keys(chart.target).forEach(function (prop) {
+        chart.current[prop] = chart.from[prop] +
+          (chart.target[prop] - chart.from[prop]) * eased;
+      });
+      if (progress >= 1) {
+        chart.current = cloneTyreDomain(chart.target);
+        chart.active = false;
+      } else {
+        moving = true;
+      }
+    });
+
+    if (anim.lastResult) {
+      if (anim.mu.current) {
+        renderTyreCurve(anim.lastResult, anim.mu.current);
+      }
+      if (anim.force.current) {
+        renderTyreForceCurve(anim.lastResult, anim.force.current);
+      }
+    }
+
+    if (moving) {
+      anim.frame = window.requestAnimationFrame(stepTyreChartAnimation);
+    } else {
+      anim.frame = null;
+    }
+  }
+
+  function resolveTyreChartDomain(key, target, result) {
+    var anim = tyreChartAnimation;
+    var chart = anim[key];
+    anim.lastResult = result;
+
+    if (!chart.current || !chart.target) {
+      chart.current = cloneTyreDomain(target);
+      chart.target = cloneTyreDomain(target);
+      chart.from = cloneTyreDomain(target);
+      chart.active = false;
+      return chart.current;
+    }
+
+    if (tyreDomainsEqual(chart.current, target)) {
+      chart.current = cloneTyreDomain(target);
+      chart.target = cloneTyreDomain(target);
+      chart.active = false;
+      return chart.current;
+    }
+
+    var reduceMotion = window.matchMedia &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduceMotion) {
+      chart.current = cloneTyreDomain(target);
+      chart.target = cloneTyreDomain(target);
+      chart.active = false;
+      return chart.current;
+    }
+
+    if (!tyreDomainsEqual(chart.target, target)) {
+      chart.from = cloneTyreDomain(chart.current);
+      chart.target = cloneTyreDomain(target);
+      chart.startedAt = tyreAnimationTime();
+      chart.active = true;
+      startTyreChartAnimation();
+    }
+    return chart.current;
+  }
+
+  function renderTyreCurve(result, domainOverride) {
     var svg = $('tyreCurveSvg');
     if (!svg) {
       return;
@@ -2597,12 +2737,27 @@
     var rawYMin = Math.min.apply(null, yCandidates);
     var rawYMax = Math.max.apply(null, yCandidates);
     var yPad = Math.max(0.018, (rawYMax - rawYMin) * 0.14);
-    var yStep = niceStep((rawYMax - rawYMin + yPad * 2) / 4);
-    var yMin = Math.max(0, Math.floor((rawYMin - yPad) / yStep) * yStep);
-    var yMax = Math.ceil((rawYMax + yPad) / yStep) * yStep;
+    var targetYStep = niceStep((rawYMax - rawYMin + yPad * 2) / 4);
+    var yMin = Math.max(
+      0,
+      Math.floor((rawYMin - yPad) / targetYStep) * targetYStep
+    );
+    var yMax = Math.ceil((rawYMax + yPad) / targetYStep) * targetYStep;
     if (!(yMax > yMin)) {
-      yMax = yMin + yStep * 2;
+      yMax = yMin + targetYStep * 2;
     }
+
+    var domain = domainOverride || resolveTyreChartDomain('mu', {
+      xMin: xMin,
+      xMax: xMax,
+      yMin: yMin,
+      yMax: yMax
+    }, result);
+    xMin = domain.xMin;
+    xMax = domain.xMax;
+    yMin = domain.yMin;
+    yMax = domain.yMax;
+    var yStep = targetYStep > 0 ? targetYStep : 0.05;
 
     function xPixel(load) {
       return margin.left + ((load - xMin) / (xMax - xMin)) * plotWidth;
@@ -2628,7 +2783,9 @@
     }
 
     var yTicks = [];
-    for (var yValue = yMin; yValue <= yMax + yStep * 0.001; yValue += yStep) {
+    for (var yValue = Math.ceil(yMin / yStep - 1e-9) * yStep;
+      yValue <= yMax + yStep * 0.001;
+      yValue += yStep) {
       yTicks.push(Number(yValue.toFixed(4)));
     }
     yTicks.forEach(function (tick) {
@@ -2784,7 +2941,7 @@
       currentTyreName() + ' 轮胎 μ–Fz 曲线；' + pointSummary + '。');
   }
 
-  function renderTyreForceCurve(result) {
+  function renderTyreForceCurve(result, domainOverride) {
     var svg = $('tyreForceSvg');
     if (!svg) {
       return;
@@ -2862,11 +3019,21 @@
       return sample.capacity / 1000;
     }));
     var rawMax = Math.max.apply(null, forceCandidates.concat([0.5])) * 1.15;
-    var yStep = niceStep(rawMax / 4);
-    var yMax = Math.ceil(rawMax / yStep) * yStep;
+    var targetYStep = niceStep(rawMax / 4);
+    var yMax = Math.ceil(rawMax / targetYStep) * targetYStep;
     if (!(yMax > 0)) {
-      yMax = yStep * 4;
+      yMax = targetYStep * 4;
     }
+
+    var domain = domainOverride || resolveTyreChartDomain('force', {
+      xMin: xMin,
+      xMax: xMax,
+      yMax: yMax
+    }, result);
+    xMin = domain.xMin;
+    xMax = domain.xMax;
+    yMax = domain.yMax;
+    var yStep = targetYStep > 0 ? targetYStep : 0.05;
 
     function xPixel(load) {
       return margin.left + ((load - xMin) / (xMax - xMin)) * plotWidth;
