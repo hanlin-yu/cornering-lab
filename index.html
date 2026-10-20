@@ -23,7 +23,7 @@
           </svg>
         </button>
       </div>
-      <h2 id="introTitle">只模拟弹簧率对重心转移的影响</h2>
+      <h2 id="introTitle">Cornering Lab - 重心转移模拟器</h2>
       <p class="intro-lead" id="introDescription">
         轮上弹簧率、防倾杆轮率与轮胎弹簧串联决定侧倾刚度分配和左右轮荷转移；轮胎只以载荷敏感 μ(Fz) 响应轮荷，再由此计算前后轴抓地余量与推头 / 甩尾趋势。
       </p>
@@ -32,9 +32,9 @@
           <h3><span>INCLUDED</span>模型包含</h3>
           <ul>
             <li>轮上弹簧率 / 防倾杆轮率</li>
-            <li>轮胎弹簧串联与侧倾刚度分配</li>
+            <li>重心位置和侧倾刚度分配</li>
             <li>侧向 / 纵向载荷转移</li>
-            <li>载荷敏感 μ(Fz) 与轴抓地力</li>
+            <li>轮胎非线性μ(Fz)</li>
           </ul>
         </section>
         <section class="intro-block intro-block--excluded">
@@ -43,15 +43,15 @@
             <li>轮胎滑移率、滑移角</li>
             <li>轮胎温度</li>
             <li>Contact patch 形状与压力分布</li>
-            <li>悬架几何运动（硬点、camber、toe）</li>
+            <li>悬架几何运动（roll center、camber、toe）</li>
           </ul>
         </section>
       </div>
       <p class="intro-note">
-        3D 硬点仅作几何展示，不参与抓地力计算。结果用于比较调校方向，不代表真实圈速或车辆极限。
+        3D 硬点仅为示意图。结果仅用于可视化理解弹簧率影响重心转移机制。
       </p>
       <form method="dialog" class="intro-actions">
-        <button class="intro-start" type="submit" autofocus>开始调校</button>
+        <button class="intro-start" type="submit" autofocus>确实</button>
       </form>
     </div>
   </dialog>
