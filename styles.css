@@ -1197,9 +1197,7 @@ html.intro-open {
 }
 
 .g-pad-note {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 2px 8px;
+  display: block;
   margin: 7px 0 0;
   color: var(--faint);
   font-size: 8.8px;
@@ -1210,6 +1208,18 @@ html.intro-open {
   color: #89a1a9;
   font-family: var(--font-mono);
   letter-spacing: 0.01em;
+}
+
+.g-pad-note-meta {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: nowrap;
+  gap: 2px 8px;
+  margin-top: 2px;
+}
+
+.g-pad-note-meta > span {
+  white-space: nowrap;
 }
 
 .range-scale {
