@@ -162,6 +162,224 @@ input:focus-visible {
 }
 
 /* --------------------------------------------------------------------------
+   Model scope dialog
+   -------------------------------------------------------------------------- */
+
+html.intro-open {
+  overflow: hidden;
+}
+
+.intro-dialog {
+  width: min(620px, calc(100vw - 32px));
+  max-height: min(88vh, 760px);
+  margin: auto;
+  padding: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  border: 1px solid var(--line-strong);
+  border-radius: 20px;
+  color: var(--text);
+  background:
+    radial-gradient(540px 260px at 88% -12%, rgba(89, 217, 211, 0.12), transparent 66%),
+    linear-gradient(148deg, rgba(23, 35, 42, 0.985), rgba(8, 14, 18, 0.995) 62%);
+  box-shadow: 0 36px 100px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.intro-dialog::backdrop {
+  background: rgba(2, 6, 9, 0.78);
+  backdrop-filter: blur(9px) saturate(0.85);
+}
+
+.intro-dialog[open] {
+  animation: introReveal 0.42s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes introReveal {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.988);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.intro-card {
+  padding: clamp(20px, 4vw, 32px);
+}
+
+.intro-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.intro-kicker {
+  color: var(--front);
+  font-family: var(--font-mono);
+  font-size: 9.6px;
+  letter-spacing: 0.14em;
+}
+
+.intro-close {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  color: var(--muted);
+  background: transparent;
+  cursor: pointer;
+}
+
+.intro-close:hover {
+  border-color: var(--line-strong);
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.intro-close svg {
+  width: 14px;
+  height: 14px;
+}
+
+.intro-dialog h2 {
+  margin: 16px 0 0;
+  font-size: clamp(24px, 3.4vw, 31px);
+  font-weight: 500;
+  letter-spacing: -0.03em;
+  line-height: 1.22;
+}
+
+.intro-lead {
+  margin: 12px 0 0;
+  color: #b9c9cf;
+  font-size: 13.6px;
+  line-height: 1.68;
+}
+
+.intro-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.intro-block {
+  padding: 14px 15px 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(4, 9, 12, 0.42);
+}
+
+.intro-block--included {
+  border-color: rgba(89, 217, 211, 0.2);
+  background: rgba(89, 217, 211, 0.045);
+}
+
+.intro-block--excluded {
+  border-color: rgba(255, 124, 111, 0.18);
+  background: rgba(255, 124, 111, 0.035);
+}
+
+.intro-block h3 {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin: 0;
+  font-size: 13.5px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.intro-block h3 span {
+  color: var(--faint);
+  font-family: var(--font-mono);
+  font-size: 8.2px;
+  font-weight: 400;
+  letter-spacing: 0.11em;
+}
+
+.intro-block--included h3 span {
+  color: rgba(89, 217, 211, 0.72);
+}
+
+.intro-block--excluded h3 span {
+  color: rgba(255, 124, 111, 0.72);
+}
+
+.intro-block ul {
+  display: grid;
+  gap: 6px;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+  color: #a9bbc1;
+  font-size: 12.4px;
+  line-height: 1.45;
+}
+
+.intro-block li {
+  position: relative;
+  padding-left: 12px;
+}
+
+.intro-block li::before {
+  content: "";
+  position: absolute;
+  top: 0.55em;
+  left: 0;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--front);
+  opacity: 0.65;
+}
+
+.intro-block--excluded li::before {
+  background: var(--danger);
+  opacity: 0.62;
+}
+
+.intro-note {
+  margin: 16px 0 0;
+  padding: 10px 13px;
+  border-left: 2px solid rgba(89, 217, 211, 0.4);
+  color: #8fa3ac;
+  background: rgba(89, 217, 211, 0.035);
+  font-size: 11.5px;
+  line-height: 1.62;
+}
+
+.intro-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 18px;
+}
+
+.intro-start {
+  min-height: 40px;
+  padding: 0 19px;
+  border: 1px solid rgba(89, 217, 211, 0.42);
+  border-radius: 8px;
+  color: #eafbfc;
+  background: linear-gradient(180deg, rgba(89, 217, 211, 0.18), rgba(89, 217, 211, 0.08));
+  font-size: 13px;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+}
+
+.intro-start:hover {
+  border-color: rgba(89, 217, 211, 0.68);
+  background: linear-gradient(180deg, rgba(89, 217, 211, 0.25), rgba(89, 217, 211, 0.11));
+}
+
+/* --------------------------------------------------------------------------
    Header
    -------------------------------------------------------------------------- */
 
@@ -4422,6 +4640,36 @@ input:focus-visible {
 
   body {
     font-size: 16.5px;
+  }
+
+  .intro-dialog {
+    width: calc(100vw - 20px);
+    max-height: calc(100dvh - 24px);
+    border-radius: 16px;
+  }
+
+  .intro-card {
+    padding: 19px 17px 17px;
+  }
+
+  .intro-dialog h2 {
+    margin-top: 14px;
+    font-size: 23px;
+  }
+
+  .intro-lead {
+    font-size: 13px;
+  }
+
+  .intro-columns {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 9px;
+    margin-top: 16px;
+  }
+
+  .intro-actions .intro-start {
+    width: 100%;
+    min-height: 44px;
   }
 
   .vehicle-bar {

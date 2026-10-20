@@ -13,6 +13,49 @@
   <div class="ambient ambient-a" aria-hidden="true"></div>
   <div class="ambient ambient-b" aria-hidden="true"></div>
 
+  <dialog class="intro-dialog" id="introDialog" aria-labelledby="introTitle" aria-describedby="introDescription">
+    <div class="intro-card">
+      <div class="intro-head">
+        <span class="intro-kicker">MODEL SCOPE / 模型边界</span>
+        <button class="intro-close" id="introClose" type="button" aria-label="关闭模型说明">
+          <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <path d="M3.5 3.5l9 9M12.5 3.5l-9 9" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+          </svg>
+        </button>
+      </div>
+      <h2 id="introTitle">只模拟弹簧率对重心转移的影响</h2>
+      <p class="intro-lead" id="introDescription">
+        轮上弹簧率、防倾杆轮率与轮胎弹簧串联决定侧倾刚度分配和左右轮荷转移；轮胎只以载荷敏感 μ(Fz) 响应轮荷，再由此计算前后轴抓地余量与推头 / 甩尾趋势。
+      </p>
+      <div class="intro-columns">
+        <section class="intro-block intro-block--included">
+          <h3><span>INCLUDED</span>模型包含</h3>
+          <ul>
+            <li>轮上弹簧率 / 防倾杆轮率</li>
+            <li>轮胎弹簧串联与侧倾刚度分配</li>
+            <li>侧向 / 纵向载荷转移</li>
+            <li>载荷敏感 μ(Fz) 与轴抓地力</li>
+          </ul>
+        </section>
+        <section class="intro-block intro-block--excluded">
+          <h3><span>NOT INCLUDED</span>模型不包含</h3>
+          <ul>
+            <li>轮胎滑移率、滑移角</li>
+            <li>轮胎温度</li>
+            <li>Contact patch 形状与压力分布</li>
+            <li>悬架几何运动（硬点、camber、toe）</li>
+          </ul>
+        </section>
+      </div>
+      <p class="intro-note">
+        3D 硬点仅作几何展示，不参与抓地力计算。结果用于比较调校方向，不代表真实圈速或车辆极限。
+      </p>
+      <form method="dialog" class="intro-actions">
+        <button class="intro-start" type="submit" autofocus>开始调校</button>
+      </form>
+    </div>
+  </dialog>
+
   <header class="site-header">
     <div class="brand-lockup">
       <div class="brand-mark" aria-hidden="true">

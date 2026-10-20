@@ -3346,7 +3346,37 @@
     }
   }
 
+  function bindIntroDialog() {
+    var dialog = $('introDialog');
+    if (!dialog) {
+      return;
+    }
+    var root = document.documentElement;
+    root.classList.add('intro-open');
+    if (typeof dialog.showModal === 'function' && !dialog.open) {
+      dialog.showModal();
+    } else {
+      dialog.setAttribute('open', '');
+    }
+
+    var closeButton = $('introClose');
+    if (closeButton) {
+      closeButton.addEventListener('click', function () {
+        dialog.close();
+      });
+    }
+    dialog.addEventListener('click', function (event) {
+      if (event.target === dialog) {
+        dialog.close();
+      }
+    });
+    dialog.addEventListener('close', function () {
+      root.classList.remove('intro-open');
+    });
+  }
+
   function init() {
+    bindIntroDialog();
     buildGaugeTicks();
     buildGPad();
     buildGRegions();
